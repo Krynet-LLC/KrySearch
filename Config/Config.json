@@ -1,70 +1,41 @@
 {
-  "site": {
-    "name": "KrySearch",
-    "description": "Privacy-first search router for open and privacy-focused engines",
-    "url": "https://krysearch.io",
-    "logo": "https://cdn.discordapp.com/attachments/1458158342739595265/1458204648404947018/file_00000000ae4471fda1a4f9cc24f64be5.png?ex=695eca68&is=695d78e8&hm=9065c921c86ec91e16a0c69e0c3df4cf47f47cda1cd8b35cb929c92dd57ad801&animated=true",
-    "theme": "dark",
-    "language": "en-US"
-  },
-
   "search": {
-    "defaultEngine": "startpage",
-    "routing": "engine-direct",
-    "noInputParsing": true
+    "defaultEngine": "startpage"
   },
-
   "engines": {
     "open_source": {
       "searxng": {
         "name": "SearXNG",
-        "description": "Open-source metasearch engine",
         "base": "https://searx.space/",
-        "appendInput": true,
-        "mode": "direct"
+        "queryParam": "q",
+        "directParam": "url"
       },
       "yacy": {
         "name": "YaCy",
-        "description": "Decentralized P2P search",
         "base": "http://search.yacy.net/",
-        "appendInput": true,
-        "mode": "direct"
+        "queryParam": "query",
+        "directParam": "url"
       }
     },
-
     "closed_source": {
       "startpage": {
         "name": "Startpage",
-        "description": "Privacy Google proxy",
-        "base": "https://www.startpage.com/",
-        "appendInput": true,
-        "mode": "direct"
+        "base": "https://www.startpage.com/sp/search",
+        "queryParam": "query",
+        "directParam": "url"
       },
       "duckduckgo": {
         "name": "DuckDuckGo",
-        "description": "Privacy-focused search",
         "base": "https://duckduckgo.com/",
-        "appendInput": true,
-        "mode": "direct"
+        "queryParam": "q",
+        "directParam": "url"
       },
       "brave": {
         "name": "Brave Search",
-        "description": "Independent privacy search",
-        "base": "https://search.brave.com/",
-        "appendInput": true,
-        "mode": "direct"
+        "base": "https://search.brave.com/search",
+        "queryParam": "q",
+        "directParam": "url"
       }
     }
-  },
-
-  "appearance": {
-    "font": "Inter, sans-serif",
-    "colors": {
-      "primary": "#4b8df8",
-      "secondary": "#1f1f1f",
-      "accent": "#f8c848"
-    },
-    "customCSS": "UI/styles.css",
-    "enableDarkModeSwitch": true
   }
 }
