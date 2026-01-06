@@ -7,10 +7,10 @@
     "theme": "dark",
     "language": "en-US"
   },
-  {
+
   "search": {
     "defaultEngine": "startpage",
-    "routing": "engine-query",
+    "routing": "engine-direct",
     "noInputParsing": true
   },
 
@@ -55,9 +55,8 @@
         "mode": "direct"
       }
     }
-  }
-}
   },
+
   "appearance": {
     "font": "Inter, sans-serif",
     "colors": {
@@ -68,3 +67,4 @@
     "customCSS": "UI/styles.css",
     "enableDarkModeSwitch": true
   }
+}
