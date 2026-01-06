@@ -63,20 +63,26 @@ function handleQuery(value, engineKey, isUrl) {
 
   let target = '';
 
-  if (isUrl || engine.mode === 'direct') {
-    // Direct mode: go to the base + input if appendInput
-    target = engine.base;
-    if (engine.appendInput) {
-      if (!target.endsWith('/') && !value.startsWith('/')) target += '/';
-      target += value;
-    }
-  } else if (engine.mode === 'query') {
-    if (!engine.url) return;
-    const query = encodeURIComponent(value);
-    target = engine.url.replace('{query}', query);
+  if (isUrl) {
+    // Direct mode: just navigate to the URL
+    target = value.startsWith('http') ? value : 'https://' + value;
   } else {
-    console.warn('Unknown engine mode:', engine.mode);
-    return;
+    // Query mode
+    if (engine.mode === 'direct') {
+      // Some engines like Startpage can do direct redirection
+      target = engine.base;
+      if (engine.appendInput) {
+        if (!target.endsWith('/') && !value.startsWith('/')) target += '/';
+        target += value;
+      }
+    } else if (engine.mode === 'query') {
+      if (!engine.url) return;
+      const query = encodeURIComponent(value);
+      target = engine.url.replace('{query}', query);
+    } else {
+      console.warn('Unknown engine mode:', engine.mode);
+      return;
+    }
   }
 
   navigate(target);
@@ -99,16 +105,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (status) status.textContent = 'Private search mode';
 
   const params = new URLSearchParams(location.search);
-  const engine = params.get('engine') || (CONFIG?.search.defaultEngine || 'startpage');
+  const engineParam = params.get('engine') || (CONFIG?.search.defaultEngine || 'startpage');
   let q = params.get('q');
   let url = params.get('url');
 
-  if (url) { 
+  if (url) {
     try { url = decodeURIComponent(url); } catch {}
-    handleQuery(url, engine, true); 
-  } else if (q) { 
+    handleQuery(url, engineParam, true); // direct URL
+  } else if (q) {
     try { q = decodeURIComponent(q); } catch {}
-    handleQuery(q, engine, false); 
+    handleQuery(q, engineParam, false); // search query
   }
 
   const goBtn = document.getElementById('go');
@@ -117,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const input = document.getElementById('q');
       const select = document.getElementById('engine');
       if (!input) return;
-      handleQuery(input.value, select?.value || engine, false);
+      handleQuery(input.value, select?.value || engineParam, false);
     };
   }
 });
