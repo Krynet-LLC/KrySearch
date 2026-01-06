@@ -3,7 +3,7 @@
     "name": "KrySearch",
     "description": "Privacy-first search router for open and privacy-focused engines",
     "url": "https://krysearch.io",
-    "logo": "assets/logo.png",
+    "logo": "UI/logo.png",
     "theme": "dark",
     "language": "en-US"
   },
