@@ -1,140 +1,98 @@
 'use strict';
 
-/* ===============================
-   ZERO STATE (scoped & safe)
-================================ */
-(function () {
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-  } catch {}
+let CONFIG = null;
 
+// Load config.json externally
+async function loadConfig() {
   try {
-    document.cookie.split(";").forEach(function (c) {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/");
-    });
-  } catch {}
-})();
-
-/* ===============================
-   PLUGIN REGISTRY & EXECUTOR
-================================ */
-if (!window.KRY_PLUGINS) {
-  window.KRY_PLUGINS = [];
+    const res = await fetch('config.json', { cache: 'no-store' });
+    CONFIG = await res.json();
+  } catch { CONFIG = null; }
 }
 
-var KRY_CONTEXT = Object.freeze({
-  ua: navigator.userAgent,
-  lang: navigator.language,
-  platform: navigator.platform,
-  url: location.href
-});
-
+// Plugin runner (external plugins will push to window.KRY_PLUGINS)
 function runPlugins() {
-  var plugins = window.KRY_PLUGINS.slice();
-  plugins.sort(function (a, b) {
-    return (a.order || 0) - (b.order || 0);
+  if (!window.KRY_PLUGINS) return;
+  window.KRY_PLUGINS.slice()
+    .sort((a,b)=> (a.order||0)-(b.order||0))
+    .forEach(p => { try { if (p?.run) p.run(window.KRY_CONTEXT); } catch {} });
+}
+
+// Populate engines dynamically from config
+function populateEngineDropdown() {
+  if (!CONFIG) return;
+  const select = document.getElementById('engine');
+  if (!select) return;
+
+  select.innerHTML = '';
+  const engines = {...CONFIG.engines.open_source, ...CONFIG.engines.closed_source};
+
+  Object.keys(engines).forEach(key => {
+    const eng = engines[key];
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = eng.name;
+    select.appendChild(opt);
   });
 
-  for (var i = 0; i < plugins.length; i++) {
-    try {
-      if (plugins[i] && typeof plugins[i].run === 'function') {
-        plugins[i].run(KRY_CONTEXT);
-      }
-    } catch {
-      // silent by design
-    }
-  }
+  // select default
+  const params = new URLSearchParams(location.search);
+  const engineParam = params.get('engine') || CONFIG.search.defaultEngine;
+  if (engineParam && engines[engineParam]) select.value = engineParam;
 }
 
-/* ===============================
-   PRIVACY-FOCUSED ENGINES
-================================ */
-var ENGINES = {
-  startpage: function (q) {
-    return 'https://www.startpage.com/sp/search?query=' + q;
-  },
-  duckduckgo: function (q) {
-    return 'https://duckduckgo.com/?q=' + q + '&kl=wt-wt';
-  },
-  brave: function (q) {
-    return 'https://search.brave.com/search?q=' + q;
-  },
-  mojeek: function (q) {
-    return 'https://www.mojeek.com/search?q=' + q;
-  },
-  qwant: function (q) {
-    return 'https://www.qwant.com/?q=' + q + '&t=web';
-  }
-};
-
-function pickEngine(name) {
-  return ENGINES[name] || ENGINES.startpage;
-}
-
-/* ===============================
-   HARDENED NAVIGATION
-================================ */
+// Safe navigation
 function navigate(url) {
-  if (window.__KRY_HARD_NAV__) {
-    window.__KRY_HARD_NAV__(url);
-  } else {
-    location.assign(url);
-  }
+  if (window.__KRY_HARD_NAV__) window.__KRY_HARD_NAV__(url);
+  else location.assign(url);
 }
 
-/* ===============================
-   QUERY HANDLER
-================================ */
-function handleQuery(value, engineName, isUrl) {
-  if (!value) return;
-
+// Query handler
+function handleQuery(value, engineKey, isUrl) {
+  if (!CONFIG || !value) return;
   value = value.trim();
-
-  // block insecure transport
   if (/^http:\/\//i.test(value)) return;
 
-  var engine = pickEngine(engineName);
+  const engines = {...CONFIG.engines.open_source, ...CONFIG.engines.closed_source};
+  const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
+  if (!engine) return;
 
-  if (!isUrl && /^https:\/\//i.test(value)) {
-    navigate(value);
-    return;
-  }
-
-  var q = encodeURIComponent(value);
-  navigate(engine(q));
+  const query = encodeURIComponent(value);
+  const searchUrl = engine.url.replace("{query}", query);
+  navigate(searchUrl);
 }
 
-/* ===============================
-   DOM READY
-================================ */
-document.addEventListener('DOMContentLoaded', function () {
-  runPlugins();
+// DOM ready
+document.addEventListener('DOMContentLoaded', async () => {
+  window.KRY_CONTEXT = Object.freeze({
+    ua: navigator.userAgent,
+    lang: navigator.language,
+    platform: navigator.platform,
+    url: location.href
+  });
 
-  var status = document.getElementById('status');
+  await loadConfig();
+  runPlugins();
+  populateEngineDropdown();
+
+  const status = document.getElementById('status');
   if (status) status.textContent = 'Private search mode';
 
-  var params = new URLSearchParams(location.search);
-  var engine = params.get('engine');
+  const params = new URLSearchParams(location.search);
+  const engine = params.get('engine') || (CONFIG?.search.defaultEngine || 'startpage');
+  let q = params.get('q');
+  let url = params.get('url');
 
-  var q = params.get('q');
-  var url = params.get('url');
+  if (url) { try { url = decodeURIComponent(url); } catch {} handleQuery(url, engine, true); }
+  else if (q) { try { q = decodeURIComponent(q); } catch {} handleQuery(q, engine, false); }
 
-  if (url) {
-    try { url = decodeURIComponent(url); } catch {}
-    handleQuery(url, engine, true);
-  } else if (q) {
-    try { q = decodeURIComponent(q); } catch {}
-    handleQuery(q, engine, false);
-  }
-
-  var goBtn = document.getElementById('go');
+  const goBtn = document.getElementById('go');
   if (goBtn) {
-    goBtn.onclick = function () {
-      var input = document.getElementById('q');
-      if (input) handleQuery(input.value, engine, false);
+    goBtn.onclick = function() {
+      const input = document.getElementById('q');
+      const select = document.getElementById('engine');
+      if (!input) return;
+      handleQuery(input.value, select?.value || engine, false);
     };
   }
 });
