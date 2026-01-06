@@ -64,12 +64,11 @@ function handleQuery(value, engineKey, isUrl) {
   let target = '';
 
   if (isUrl) {
-    // Direct mode: just navigate to the URL
+    // Direct URL mode
     target = value.startsWith('http') ? value : 'https://' + value;
   } else {
     // Query mode
     if (engine.mode === 'direct') {
-      // Some engines like Startpage can do direct redirection
       target = engine.base;
       if (engine.appendInput) {
         if (!target.endsWith('/') && !value.startsWith('/')) target += '/';
@@ -78,7 +77,8 @@ function handleQuery(value, engineKey, isUrl) {
     } else if (engine.mode === 'query') {
       if (!engine.url) return;
       const query = encodeURIComponent(value);
-      target = engine.url.replace('{query}', query);
+      // Support both {query} and %s placeholders
+      target = engine.url.replace('{query}', query).replace('%s', query);
     } else {
       console.warn('Unknown engine mode:', engine.mode);
       return;
@@ -105,16 +105,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (status) status.textContent = 'Private search mode';
 
   const params = new URLSearchParams(location.search);
-  const engineParam = params.get('engine') || (CONFIG?.search.defaultEngine || 'startpage');
+  const engine = params.get('engine') || (CONFIG?.search.defaultEngine || 'startpage');
   let q = params.get('q');
   let url = params.get('url');
 
   if (url) {
     try { url = decodeURIComponent(url); } catch {}
-    handleQuery(url, engineParam, true); // direct URL
+    handleQuery(url, engine, true);
   } else if (q) {
     try { q = decodeURIComponent(q); } catch {}
-    handleQuery(q, engineParam, false); // search query
+    handleQuery(q, engine, false);
   }
 
   const goBtn = document.getElementById('go');
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const input = document.getElementById('q');
       const select = document.getElementById('engine');
       if (!input) return;
-      handleQuery(input.value, select?.value || engineParam, false);
+      handleQuery(input.value, select?.value || engine, false);
     };
   }
 });
