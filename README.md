@@ -48,8 +48,9 @@ To get started with **KrySearch**, follow these steps:
    ```bash
    git clone https://github.com/Bloodware-Inc/KrySearch.git
 Navigate to the project directory:
-
+   ```bash
 cd KrySearch
+```
 Open index.html in your browser, or deploy it to a server.
 
 Deployment on GitHub Pages
@@ -104,18 +105,21 @@ Steps for Contributing:
 Fork the repository on GitHub.
 
 Clone your forked repository:
-
+```bash
 git clone https://github.com/YOUR_USERNAME/KrySearch.git
+```
 Create a new branch for your changes:
-
+```bash
 git checkout -b feature-branch
+```
 Make your changes. You can add new features, improve the UI, optimize the code, or implement new search engines.
 
 Test your changes thoroughly to ensure they work correctly and do not break any existing functionality.
 
 Commit your changes:
-
+```bash
 git commit -am 'Add feature or fix bug'
+```
 Push to your branch:
 
 git push origin feature-branch
@@ -139,7 +143,7 @@ Adding a New Search Engine
 You can extend KrySearch to include more search engines by modifying the search.js file. The search engine configuration is stored in the CONFIG object, which can be extended with more search engines.
 
 Example:
-
+```javascript
 const engines = { 
   ...CONFIG.engines.open_source, 
   ...CONFIG.engines.closed_source,
@@ -149,12 +153,13 @@ const engines = {
     mode: 'query'
   }
 };
+```
 Customizing the UI
 Feel free to modify the HTML and CSS to customize the appearance of KrySearch. For instance, you can change the theme, layout, or button styles to match your brand or personal preference.
 
 Using External Plugins
 You can also extend KrySearch using JavaScript plugins. To create a plugin, simply write your script and push it into the window.KRY_PLUGINS array. For example:
-
+```javascript
 window.KRY_PLUGINS.push({
   id: 'new-feature',
   description: 'Adds new feature to KrySearch',
@@ -162,9 +167,10 @@ window.KRY_PLUGINS.push({
     // Add your custom logic here
   }
 });
+```
 Make sure to follow the best practices for privacy and security when adding new features.
 
-About Krynet, LLC
+# About Krynet, LLC
 Krynet, LLC is a privacy-first technology company committed to creating tools and services that prioritize user security and data protection. KrySearch is part of the Krynet ecosystem, which aims to provide secure, transparent, and privacy-respecting alternatives to traditional internet services.
 
 For more information about Krynet, LLC and its mission, visit Krynet.ai.
