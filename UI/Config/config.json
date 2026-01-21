@@ -24,7 +24,9 @@
         "url": "https://searx.space/?q={query}",
         "base": "https://searx.space/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "yacy": {
         "name": "YaCy",
@@ -32,7 +34,9 @@
         "url": "https://search.yacy.net/Search?query={query}",
         "base": "https://search.yacy.net/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "mojeek": {
         "name": "Mojeek",
@@ -40,7 +44,9 @@
         "url": "https://www.mojeek.com/search?q={query}",
         "base": "https://www.mojeek.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "metager": {
         "name": "MetaGer",
@@ -48,7 +54,9 @@
         "url": "https://metager.org/search?q={query}",
         "base": "https://metager.org/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       }
     },
 
@@ -59,7 +67,9 @@
         "url": "https://www.startpage.com/sp/search?query={query}",
         "base": "https://www.startpage.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "duckduckgo": {
         "name": "DuckDuckGo",
@@ -67,7 +77,9 @@
         "url": "https://duckduckgo.com/?q={query}&kl=wt-wt",
         "base": "https://duckduckgo.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "brave": {
         "name": "Brave Search",
@@ -75,7 +87,9 @@
         "url": "https://search.brave.com/search?q={query}",
         "base": "https://search.brave.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "swisscows": {
         "name": "Swisscows",
@@ -83,7 +97,9 @@
         "url": "https://swisscows.com/web?query={query}",
         "base": "https://swisscows.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       },
       "presearch": {
         "name": "Presearch",
@@ -91,7 +107,9 @@
         "url": "https://presearch.com/search?q={query}",
         "base": "https://presearch.com/",
         "mode": "query",
-        "appendInput": true
+        "appendInput": true,
+        "secureHeaders": true,
+        "disableTracking": true
       }
     }
   },
