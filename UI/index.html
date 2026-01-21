@@ -13,7 +13,7 @@
   <!-- Color scheme -->
   <meta name="color-scheme" content="dark">
 
-  <!-- Permissions policy (GitHub Pages safe) -->
+  <!-- Permissions policy -->
   <meta http-equiv="Permissions-Policy"
         content="accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),clipboard-read=(),clipboard-write=(),display-capture=(),document-domain=(),encrypted-media=(),fullscreen=(),geolocation=(),gyroscope=(),hid=(),idle-detection=(),interest-cohort=(),magnetometer=(),microphone=(),midi=(),payment=(),picture-in-picture=(),publickey-credentials-get=(),screen-wake-lock=(),serial=(),usb=(),web-share=(),xr-spatial-tracking=()">
 
@@ -28,6 +28,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body spellcheck="false">
+
+  <!-- Main Content -->
   <div class="box">
     <img src="https://github.com/Bloodware-Inc/KrySearch/blob/main/lgoo.png?raw=true" alt="KrySearch Logo" class="logo">
     <h1>KrySearch</h1>
@@ -37,6 +39,17 @@
     <button id="go">Go</button>
     <div class="meta" id="status"></div>
   </div>
+
+  <!-- NoScript Fallback -->
+  <noscript>
+    <p><strong>JavaScript is disabled in your browser. Please enable it to use this website.</strong></p>
+    <form action="/" method="get">
+      <label for="q">Search:</label>
+      <input type="text" id="q" name="q" placeholder="Enter your search">
+      <button type="submit">Go</button>
+    </form>
+  </noscript>
+
   <!-- External plugins -->
   <script src="Modules/privacy.clean.js" defer></script>
   <script src="Modules/privacy.hardening.js" defer></script>
@@ -46,7 +59,9 @@
   <script src="Modules/privacy.fingerprint.js" defer></script>
   <script src="Modules/secure-transport-ultra.js" defer></script>
   <script src="Modules/native-url-launcher.js" defer></script>
+
   <!-- Main UI / config loader -->
   <script src="search.js" defer></script>
+
 </body>
 </html>
