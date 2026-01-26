@@ -1,105 +1,93 @@
 /* ==============================
-   Absolute Query Lockdown MAX
-   Only ?url= & ?q= allowed, all else stripped
+   Absolute URL & Param Sanitizer
+   Cleans tracking & junk before navigating
    ============================== */
 (function() {
   "use strict";
 
   const plugin = {
-    id: "query-param-lockdown",
-    description: "Only ?url= and ?q= are allowed; all other params stripped, hijacks blocked, URL sanitized",
+    id: "url-param-sanitizer",
+    description: "Sanitize all URLs: only ?url= & ?q= allowed, strip tracking before navigating",
 
     run() {
       try {
-        const ALLOWED_PARAMS = new Set(["url","q"]);
+        const ALLOWED_PARAMS = new Set(["url", "q"]);
+        const TRACKING_PREFIXES = ["utm_", "fbclid", "gclid", "_ga", "_gl", "_gid"];
 
-        function sanitizeURL() {
-          const params = new URLSearchParams(window.location.search);
-          let modified = false;
+        function sanitizeUrl(rawUrl) {
+          try {
+            const u = new URL(rawUrl, window.location.origin);
+            const params = new URLSearchParams(u.search);
+            let modified = false;
 
-          // Remove disallowed params
-          for (const key of Array.from(params.keys())) {
-            if (!ALLOWED_PARAMS.has(key)) {
-              params.delete(key);
-              modified = true;
-            }
-          }
-
-          // Strip tracking junk (utm, fbclid, gclid, _ga, etc)
-          const TRACKING_PREFIXES = ["utm_","fbclid","gclid","_ga","_gl","_gid"];
-          for (const key of Array.from(params.keys())) {
-            for (const prefix of TRACKING_PREFIXES) {
-              if (key.startsWith(prefix)) {
+            // Remove disallowed params
+            for (const key of Array.from(params.keys())) {
+              if (!ALLOWED_PARAMS.has(key) || TRACKING_PREFIXES.some(p => key.startsWith(p))) {
                 params.delete(key);
                 modified = true;
               }
             }
-          }
 
-          // Rebuild URL only with allowed params
-          if (modified) {
-            const newUrl = window.location.origin + window.location.pathname + (params.toString() ? "?" + params.toString() : "");
-            history.replaceState({}, "", newUrl);
+            // Rebuild clean URL
+            const cleanUrl = u.origin + u.pathname + (params.toString() ? "?" + params.toString() : "") + u.hash;
+            return cleanUrl;
+          } catch {
+            return rawUrl;
           }
         }
 
-        // Initial sanitize on page load
-        sanitizeURL();
+        // Sanitize initial page load ?url= or ?q=
+        const urlParams = new URLSearchParams(window.location.search);
+        let shouldRedirect = false;
+        let finalUrl = null;
+        for (const key of ["url", "q"]) {
+          if (urlParams.has(key)) {
+            finalUrl = sanitizeUrl(urlParams.get(key));
+            shouldRedirect = true;
+            break;
+          }
+        }
 
-        // Monitor URL changes (JS / pushState / replaceState)
-        ["pushState","replaceState"].forEach(fn => {
-          const original = history[fn];
-          history[fn] = function(state, title, url) {
-            if (url) {
-              const u = new URL(url, window.location.origin);
-              const params = new URLSearchParams(u.search);
-              let allowed = false;
-              for (const key of params.keys()) {
-                if (ALLOWED_PARAMS.has(key)) {
-                  allowed = true;
-                }
-              }
-              if (!allowed) {
-                console.warn("🚫 Attempted injection / hijack blocked:", url);
-                return; // block illegal param changes
-              }
-              // Strip extra tracking
-              for (const key of Array.from(params.keys())) {
-                if (!ALLOWED_PARAMS.has(key) || ["utm_","fbclid","gclid","_ga","_gl","_gid"].some(p => key.startsWith(p))) {
-                  params.delete(key);
-                }
-              }
-              url = u.origin + u.pathname + (params.toString() ? "?" + params.toString() : "");
-            }
-            return original.apply(this, [state,title,url]);
-          };
-        });
+        if (shouldRedirect && finalUrl) {
+          // Remove ?url=/?q= from bar
+          history.replaceState({}, "", window.location.pathname);
+          // Navigate to sanitized URL
+          window.location.assign(finalUrl);
+        }
 
-        // Monitor hash changes for hijack attempts
-        window.addEventListener("hashchange", () => sanitizeURL());
-
-        // Monitor clicks on links that try to inject disallowed params
+        // Intercept all clicks
         document.addEventListener("click", e => {
           const a = e.target.closest("a");
           if (!a || !a.href) return;
-          const u = new URL(a.href, window.location.origin);
-          let hasIllegal = false;
-          for (const key of u.searchParams.keys()) {
-            if (!ALLOWED_PARAMS.has(key)) hasIllegal = true;
-          }
-          if (hasIllegal) {
+          const cleanHref = sanitizeUrl(a.href);
+          if (a.href !== cleanHref) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            console.warn("🚫 Link with illegal query params blocked:", a.href);
+            a.href = cleanHref;
+            window.location.assign(cleanHref);
+          }
+        }, true);
+
+        // Intercept form submissions
+        document.addEventListener("submit", e => {
+          const f = e.target;
+          if (!f || !f.action) return;
+          const cleanAction = sanitizeUrl(f.action);
+          if (f.action !== cleanAction) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            f.action = cleanAction;
+            f.submit();
           }
         }, true);
 
       } catch (err) {
-        console.error("Query Param Lockdown failed silently:", err);
+        console.error("URL Param Sanitizer failed:", err);
       }
     }
   };
 
   window.KRY_PLUGINS = window.KRY_PLUGINS || [];
   window.KRY_PLUGINS.push(plugin);
+
 })();
