@@ -1,26 +1,26 @@
 /* ==============================
-   Absolute URL & Param Sanitizer
-   Cleans tracking & junk before navigating
+   URL Param Sanitizer – GitHub Pages Friendly
+   Only ?url= & ?q= allowed, tracking stripped before navigation
    ============================== */
 (function() {
   "use strict";
 
   const plugin = {
-    id: "url-param-sanitizer",
-    description: "Sanitize all URLs: only ?url= & ?q= allowed, strip tracking before navigating",
+    id: "url-param-sanitizer-ghp",
+    description: "Sanitize all URLs: only ?url= & ?q= allowed, strip tracking before navigating (GitHub Pages safe)",
 
     run() {
       try {
         const ALLOWED_PARAMS = new Set(["url", "q"]);
         const TRACKING_PREFIXES = ["utm_", "fbclid", "gclid", "_ga", "_gl", "_gid"];
 
-        function sanitizeUrl(rawUrl) {
+        function sanitizeUrl(rawUrl: string) {
           try {
-            const u = new URL(rawUrl, window.location.origin);
+            const u = new URL(rawUrl, window.location.href);
             const params = new URLSearchParams(u.search);
             let modified = false;
 
-            // Remove disallowed params
+            // Remove disallowed params and tracking
             for (const key of Array.from(params.keys())) {
               if (!ALLOWED_PARAMS.has(key) || TRACKING_PREFIXES.some(p => key.startsWith(p))) {
                 params.delete(key);
@@ -29,8 +29,7 @@
             }
 
             // Rebuild clean URL
-            const cleanUrl = u.origin + u.pathname + (params.toString() ? "?" + params.toString() : "") + u.hash;
-            return cleanUrl;
+            return u.origin + u.pathname + (params.toString() ? "?" + params.toString() : "") + u.hash;
           } catch {
             return rawUrl;
           }
@@ -38,51 +37,50 @@
 
         // Sanitize initial page load ?url= or ?q=
         const urlParams = new URLSearchParams(window.location.search);
-        let shouldRedirect = false;
-        let finalUrl = null;
+        let finalUrl: string | null = null;
         for (const key of ["url", "q"]) {
           if (urlParams.has(key)) {
-            finalUrl = sanitizeUrl(urlParams.get(key));
-            shouldRedirect = true;
+            finalUrl = sanitizeUrl(urlParams.get(key)!);
             break;
           }
         }
 
-        if (shouldRedirect && finalUrl) {
-          // Remove ?url=/?q= from bar
+        if (finalUrl) {
+          // Remove ?url=/?q= from bar without reload
           history.replaceState({}, "", window.location.pathname);
-          // Navigate to sanitized URL
-          window.location.assign(finalUrl);
+          // GitHub Pages safe redirect using setTimeout
+          setTimeout(() => window.location.href = finalUrl!, 50);
         }
 
-        // Intercept all clicks
+        // Intercept clicks on links
         document.addEventListener("click", e => {
-          const a = e.target.closest("a");
+          const a = e.target.closest("a") as HTMLAnchorElement;
           if (!a || !a.href) return;
           const cleanHref = sanitizeUrl(a.href);
           if (a.href !== cleanHref) {
             e.preventDefault();
             e.stopImmediatePropagation();
             a.href = cleanHref;
-            window.location.assign(cleanHref);
+            // GitHub Pages safe navigation
+            setTimeout(() => window.location.href = cleanHref, 50);
           }
         }, true);
 
         // Intercept form submissions
         document.addEventListener("submit", e => {
-          const f = e.target;
+          const f = e.target as HTMLFormElement;
           if (!f || !f.action) return;
           const cleanAction = sanitizeUrl(f.action);
           if (f.action !== cleanAction) {
             e.preventDefault();
             e.stopImmediatePropagation();
             f.action = cleanAction;
-            f.submit();
+            setTimeout(() => f.submit(), 50);
           }
         }, true);
 
       } catch (err) {
-        console.error("URL Param Sanitizer failed:", err);
+        console.error("URL Param Sanitizer (GHP) failed:", err);
       }
     }
   };
