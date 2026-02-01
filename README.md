@@ -16,6 +16,12 @@ KrySearch provides users with a way to search the web privately, without the tra
 - **No Cookies**: No cookies are used, ensuring full anonymity during searches.
 - **CSP and CORS Safe**: Works seamlessly with Content Security Policies (CSP) and Cross-Origin Resource Sharing (CORS), making it compatible with platforms like GitHub Pages.
 - **No Ads or Personalization**: Unlike traditional search engines, KrySearch doesn't show personalized ads or track users.
+- **Encrypted Relay for search queries**
+- **Hybrid Post-Quantum + Classical Crypto**
+- **Search Isolation to prevent any leaks**
+- **Fully Zero-Knowledge — KrySearch never stores, logs, or sees your queries**
+- **HTTPS-only enforcement for ?url= redirects**
+- **CSP-compliant and XSS-safe**
 
 ## License
 
