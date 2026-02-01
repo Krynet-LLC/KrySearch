@@ -14,10 +14,9 @@
 
   const domainCache = new Map();
 
-  // Best-effort IPv6 detection
   async function supportsIPv6() {
     try {
-      return await new Promise((resolve) => {
+      return await new Promise(resolve => {
         const rtc = new RTCPeerConnection({ iceServers: [] });
         rtc.createDataChannel("ipv6_test");
         rtc.createOffer().then(offer => rtc.setLocalDescription(offer));
@@ -42,13 +41,10 @@
 
     for (const server of DOH_SERVERS) {
       try {
-        // Use application/dns-json format for GitHub Pages safe fetch
         const url = `${server}?name=${encodeURIComponent(domain)}&type=${type}`;
         const res = await fetch(url, { cache: 'no-store', mode: 'cors' });
         if (!res.ok) continue;
         const data = await res.json();
-
-        // Most DoH services respond with 'Answer' array
         if (Array.isArray(data.Answer)) {
           for (const record of data.Answer) {
             if (type === 'A' || type === 'AAAA') result.push(record.data);
@@ -68,17 +64,18 @@
     description: "Quad9 DoH resolver, CSP/CORS safe, IPv6-ready, GitHub Pages compatible",
     run: async function (ctx) {
       try {
-        ctx.dnsResolver = { resolve: resolveWithDoH };
-        ctx.supportsIPv6 = await supportsIPv6();
+        const localCtx = {}; // use local object to avoid frozen ctx
+        localCtx.dnsResolver = { resolve: resolveWithDoH };
+        localCtx.supportsIPv6 = await supportsIPv6();
 
         const params = new URLSearchParams(window.location.search);
         const inputRaw = (params.get("url") || params.get("q") || "").trim();
-        if (!inputRaw) { ctx.output = null; return; }
+        if (!inputRaw) { localCtx.output = null; return; }
 
         let domain = inputRaw;
         try { domain = new URL(inputRaw).hostname; } catch {}
 
-        if (!isDomain(domain)) { ctx.output = null; return; }
+        if (!isDomain(domain)) { localCtx.output = null; return; }
 
         const [A, AAAA, MX] = await Promise.all([
           resolveWithDoH(domain, "A"),
@@ -86,7 +83,7 @@
           resolveWithDoH(domain, "MX")
         ]);
 
-        ctx.output = {
+        localCtx.output = {
           input: inputRaw,
           domain: domain,
           A: A || [],
@@ -94,7 +91,16 @@
           MX: MX || [],
           note: "Resolved via DoH (Quad9 primary, Google & Cloudflare fallback)"
         };
-      } catch { ctx.output = null; }
+
+        // assign to ctx.output only if writable
+        try { if (Object.isExtensible(ctx)) ctx.output = localCtx.output; } catch {}
+
+        // always expose locally for debugging
+        ctx.__doHResult = localCtx.output;
+
+      } catch {
+        try { if (Object.isExtensible(ctx)) ctx.output = null; } catch {}
+      }
     }
   };
 
