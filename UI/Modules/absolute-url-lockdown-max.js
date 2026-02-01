@@ -144,7 +144,7 @@
           const res = await scan(urlParam);
           if (res.block) {
             if(!SILENT) alert("🚫 Dangerous ?url= query blocked automatically.");
-            history.replaceState({}, "", location.pathname); // Remove ?url= from URL
+            history.replaceState({}, "", location.pathname);
           }
         }
 
