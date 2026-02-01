@@ -9,7 +9,7 @@ KrySearch provides users with a way to search the web privately, without the tra
 [![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)
 
 ## Features
- **Fully compatible with LibreJS.**
+- **Fully compatible with LibreJS.**
 - **All JavaScript is Free Software (GPL-3.0-or-later), self-hosted, and transparently licensed.**
 - **Privacy-Focused**: Does not collect or store any user data.
 - **Open Source**: Fully open-source and licensed under the **GNU GPL 3.0**.
