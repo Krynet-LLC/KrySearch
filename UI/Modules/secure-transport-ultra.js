@@ -21,9 +21,8 @@ window.KRY_PLUGINS.push({
             r,
             min +
               (hasCrypto
-                ? crypto.getRandomValues(new Uint8Array(1))[0] / 255
-                : Math.random()) *
-                (max - min)
+                ? (crypto.getRandomValues(new Uint8Array(1))[0] / 255) * (max - min)
+                : Math.random() * (max - min))
           )
         );
 
@@ -37,7 +36,6 @@ window.KRY_PLUGINS.push({
 
       async function seal(str) {
         if (!hasCrypto) return { plain: str };
-
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const key = await sessionKeyPromise;
         const data = await crypto.subtle.encrypt(
@@ -66,7 +64,8 @@ window.KRY_PLUGINS.push({
 
       function isEngineURL(url) {
         try {
-          return new URL(url, location.href).searchParams.has("engine");
+          const u = new URL(url, location.href);
+          return u.searchParams.has("engine");
         } catch {
           return false;
         }
@@ -87,61 +86,60 @@ window.KRY_PLUGINS.push({
       const realAssign = location.assign.bind(location);
       const realReplace = location.replace.bind(location);
 
-      location.assign = url =>
-        isEngineURL(url) ? hardNavigate(url) : realAssign(url);
+      location.assign = function(url) {
+        return isEngineURL(url) ? hardNavigate(url) : realAssign(url);
+      };
 
-      location.replace = url =>
-        isEngineURL(url) ? hardNavigate(url) : realReplace(url);
+      location.replace = function(url) {
+        return isEngineURL(url) ? hardNavigate(url) : realReplace(url);
+      };
 
-      Object.defineProperty(location, "href", {
-        set(url) {
-          isEngineURL(url) ? hardNavigate(url) : realAssign(url);
-        },
-        get() {
-          return realAssign.toString && document.URL;
-        },
-        configurable: false
-      });
+      // Safe location.href override
+      try {
+        Object.defineProperty(location, "href", {
+          set(url) { isEngineURL(url) ? hardNavigate(url) : realAssign(url); },
+          get() { return document.URL; },
+          configurable: true
+        });
+      } catch {
+        // fail silently if browser blocks it
+      }
 
-      document.addEventListener(
-        "click",
-        e => {
-          const a = e.target.closest("a[href]");
-          if (!a) return;
-          if (isEngineURL(a.href)) {
-            e.preventDefault();
-            hardNavigate(a.href);
-          }
-        },
-        true
-      );
+      // Click interception
+      document.addEventListener("click", e => {
+        const a = e.target.closest("a[href]");
+        if (!a) return;
+        if (isEngineURL(a.href)) {
+          e.preventDefault();
+          hardNavigate(a.href);
+        }
+      }, true);
 
-      document.addEventListener(
-        "submit",
-        e => {
-          const form = e.target;
-          if (form?.action && isEngineURL(form.action)) {
-            e.preventDefault();
-            hardNavigate(form.action);
-          }
-        },
-        true
-      );
+      // Form interception
+      document.addEventListener("submit", e => {
+        const form = e.target;
+        if (form && form.action && isEngineURL(form.action)) {
+          e.preventDefault();
+          hardNavigate(form.action);
+        }
+      }, true);
 
+      // Mutation observer to catch dynamic links
       const observer = new MutationObserver(mutations => {
         for (const m of mutations) {
           for (const n of m.addedNodes) {
             if (n.nodeType !== 1) continue;
 
             if (n.tagName === "A" && isEngineURL(n.href)) {
-              n.remove();
-              continue;
+              try { n.remove(); } catch {}
             }
 
             if (n.querySelectorAll) {
-              n.querySelectorAll("a[href]").forEach(a => {
-                if (isEngineURL(a.href)) a.remove();
-              });
+              try {
+                n.querySelectorAll("a[href]").forEach(a => {
+                  if (isEngineURL(a.href)) try { a.remove(); } catch {}
+                });
+              } catch {}
             }
           }
         }
@@ -152,14 +150,16 @@ window.KRY_PLUGINS.push({
         subtree: true
       });
 
-      Object.defineProperty(window, "__KRY_HARD_NAV__", {
-        value: hardNavigate,
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
+      // Expose safe hard navigation function
+      try {
+        Object.defineProperty(window, "__KRY_HARD_NAV__", {
+          value: hardNavigate,
+          writable: false,
+          configurable: false,
+          enumerable: false
+        });
+      } catch {}
 
-      Object.freeze(window.__KRY_HARD_NAV__);
     } catch {
       // silent by design
     }
