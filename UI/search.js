@@ -120,7 +120,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleQuery(url, engine, true);
   } else if (q) {
     try { q = decodeURIComponent(q); } catch {}
-    handleQuery(q, engine, false);
+    const val = input.value.trim();
+    const isUrl = /^(https?:\/\/|[a-z0-9-]+\.[a-z]{2,})/i.test(val);
+    handleQuery(val, select?.value || engine, isUrl);
   }
 
   const goBtn = document.getElementById('go');
