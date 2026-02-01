@@ -11,6 +11,8 @@
 
     run(ctx) {
       try {
+        ctx = ctx || (window.KRY_CONTEXT = window.KRY_CONTEXT || {});
+
         // =========================
         // Engine profile (deterministic)
         // =========================
@@ -27,13 +29,15 @@
         // =========================
         // Canvas
         // =========================
-        if (HTMLCanvasElement.prototype.toDataURL) {
+        if (HTMLCanvasElement && HTMLCanvasElement.prototype.toDataURL) {
+          const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
           HTMLCanvasElement.prototype.toDataURL = function () {
             return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
           };
         }
 
-        if (CanvasRenderingContext2D.prototype.getImageData) {
+        if (CanvasRenderingContext2D && CanvasRenderingContext2D.prototype.getImageData) {
+          const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
           CanvasRenderingContext2D.prototype.getImageData = function (x, y, w, h) {
             return new ImageData(w, h);
           };
@@ -43,7 +47,7 @@
         // WebGL
         // =========================
         function lockWebGL(proto) {
-          if (!proto) return;
+          if (!proto || !proto.getParameter) return;
           const original = proto.getParameter;
           proto.getParameter = function (p) {
             const map = {
@@ -56,8 +60,8 @@
           };
         }
 
-        if (typeof WebGLRenderingContext !== "undefined") lockWebGL(WebGLRenderingContext.prototype);
-        if (typeof WebGL2RenderingContext !== "undefined") lockWebGL(WebGL2RenderingContext.prototype);
+        if (window.WebGLRenderingContext) lockWebGL(WebGLRenderingContext.prototype);
+        if (window.WebGL2RenderingContext) lockWebGL(WebGL2RenderingContext.prototype);
 
         // =========================
         // Fonts
@@ -110,7 +114,7 @@
         // AudioContext
         // =========================
         function lockAudioContext(proto) {
-          if (!proto) return;
+          if (!proto || !proto.createAnalyser) return;
           const originalCreateAnalyser = proto.createAnalyser;
           proto.createAnalyser = function () {
             const analyser = originalCreateAnalyser.call(this);
@@ -120,7 +124,7 @@
           };
         }
 
-        if (window.AudioContext) lockAudioContext(window.AudioContext.prototype);
+        if (window.AudioContext) lockAudioContext(AudioContext.prototype);
         if (window.webkitAudioContext) lockAudioContext(window.webkitAudioContext.prototype);
 
         // =========================
@@ -141,7 +145,7 @@
         }
 
         // =========================
-        // Internal state (no logs)
+        // Internal state
         // =========================
         ctx.fingerprint = {
           hardened: true,
@@ -154,8 +158,10 @@
           storage: "none",
           logging: false
         };
-      } catch {
+
+      } catch (err) {
         // fail silently
+        console.error("[KrySearch Plugin Error]", err);
       }
     }
   };
