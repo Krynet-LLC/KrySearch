@@ -14,30 +14,24 @@
         ctx = ctx || (window.KRY_CONTEXT = window.KRY_CONTEXT || {});
 
         // =========================
-        // Engine profile (deterministic)
+        // Engine profile
         // =========================
-        const engine = (new URLSearchParams(location.search).get("engine")) || "default";
-
+        const engine = new URLSearchParams(location.search).get("engine") || "default";
         const ENGINE_PROFILES = {
           default: { vendor: "KrySearch", renderer: "KrySearch Renderer", audioNoise: 0, perfResolution: 100 },
           tor:     { vendor: "Mozilla", renderer: "Gecko", audioNoise: 0, perfResolution: 100 },
           chromium:{ vendor: "Google Inc.", renderer: "ANGLE", audioNoise: 0, perfResolution: 50 }
         };
-
         const profile = ENGINE_PROFILES[engine] || ENGINE_PROFILES.default;
 
         // =========================
         // Canvas
         // =========================
         if (HTMLCanvasElement && HTMLCanvasElement.prototype.toDataURL) {
-          const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-          HTMLCanvasElement.prototype.toDataURL = function () {
-            return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
-          };
+          HTMLCanvasElement.prototype.toDataURL = () =>
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
         }
-
         if (CanvasRenderingContext2D && CanvasRenderingContext2D.prototype.getImageData) {
-          const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
           CanvasRenderingContext2D.prototype.getImageData = function (x, y, w, h) {
             return new ImageData(w, h);
           };
@@ -51,15 +45,14 @@
           const original = proto.getParameter;
           proto.getParameter = function (p) {
             const map = {
-              37445: profile.vendor,     // UNMASKED_VENDOR_WEBGL
-              37446: profile.renderer,   // UNMASKED_RENDERER_WEBGL
-              7936: "WebGL 1.0",         // VERSION
-              7937: "WebGL GLSL ES 1.0"  // SHADING_LANGUAGE_VERSION
+              37445: profile.vendor,
+              37446: profile.renderer,
+              7936: "WebGL 1.0",
+              7937: "WebGL GLSL ES 1.0"
             };
             return map[p] !== undefined ? map[p] : original.call(this, p);
           };
         }
-
         if (window.WebGLRenderingContext) lockWebGL(WebGLRenderingContext.prototype);
         if (window.WebGL2RenderingContext) lockWebGL(WebGL2RenderingContext.prototype);
 
@@ -75,7 +68,8 @@
         // Permissions API
         // =========================
         if (navigator.permissions && navigator.permissions.query) {
-          navigator.permissions.query = () => Promise.resolve({ state: "prompt", onchange: null });
+          navigator.permissions.query = () =>
+            Promise.resolve({ state: "prompt", onchange: null });
         }
 
         // =========================
@@ -123,7 +117,6 @@
             return analyser;
           };
         }
-
         if (window.AudioContext) lockAudioContext(AudioContext.prototype);
         if (window.webkitAudioContext) lockAudioContext(window.webkitAudioContext.prototype);
 
@@ -136,12 +129,12 @@
         }
 
         // =========================
-        // Performance API
+        // Performance API (fixed)
         // =========================
         if (window.performance) {
           const now = () => Math.floor(Date.now() / profile.perfResolution) * profile.perfResolution;
           performance.now = now;
-          performance.timeOrigin = now();
+          // DO NOT overwrite timeOrigin — read-only
         }
 
         // =========================
@@ -160,7 +153,6 @@
         };
 
       } catch (err) {
-        // fail silently
         console.error("[KrySearch Plugin Error]", err);
       }
     }
