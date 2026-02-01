@@ -13,11 +13,9 @@
   const malwareHosts = new Set();
 
   async function loadFeeds() {
-    const feeds = [
-      { url: "UI/Modules/Feeds/openPhish.txt", set: openPhish },
-      { url: "UI/Modules/Feeds/drop.txt", set: spamhaus }, // edrop merged into drop
-      { url: "UI/Modules/Feeds/urlhaus.txt", set: malwareHosts }
-    ];
+{ url: "Modules/Feeds/openphish.txt", set: openPhish },
+            { url: "Modules/Feeds/spamhaus_drop.txt", set: spamhaus },
+            { url: "Modules/Feeds/urlhaus.txt", set: malwareHosts }
 
     await Promise.all(feeds.map(async f => {
       try {
