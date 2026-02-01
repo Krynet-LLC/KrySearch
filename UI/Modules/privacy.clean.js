@@ -12,20 +12,21 @@
         // ===============================
         // Storage Cleanup
         // ===============================
-        try { 
-          localStorage.clear(); 
-        } catch {} // Ignore any error
-        
-        try { 
-          sessionStorage.clear(); 
-        } catch {} // Ignore any error
+        try { localStorage.clear(); } catch {}
+        try { sessionStorage.clear(); } catch {}
 
-        // Clearing IndexedDB databases
+        // IndexedDB cleanup
         try {
-          if (window.indexedDB) {
-            indexedDB.databases?.().then(dbs => {
-              dbs.forEach(db => indexedDB.deleteDatabase(db.name));
-            }).catch(() => {}); // Ignore errors here
+          if (window.indexedDB && indexedDB.databases) {
+            indexedDB.databases().then(function(dbs) {
+              if (Array.isArray(dbs)) {
+                dbs.forEach(function(db) {
+                  if (db && db.name) {
+                    try { indexedDB.deleteDatabase(db.name); } catch {}
+                  }
+                });
+              }
+            }).catch(function(){});
           }
         } catch {}
 
@@ -33,40 +34,44 @@
         // Cookie Cleanup
         // ===============================
         try {
-          document.cookie.split(";").forEach(c => {
+          document.cookie.split(";").forEach(function(c) {
             document.cookie = c.replace(/^ +/, "")
               .replace(/=.*/, "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/");
           });
-        } catch {} // Ignore errors
+        } catch {}
 
         // ===============================
         // Kill Speculative Fetches
         // ===============================
-        const killLinks = () => {
-          document.querySelectorAll(
+        function killLinks() {
+          var links = document.querySelectorAll(
             'link[rel="prefetch"],link[rel="dns-prefetch"],link[rel="prerender"],link[rel="preconnect"]'
-          ).forEach(l => l.remove());
-        };
+          );
+          if (links && links.length) {
+            for (var i = 0; i < links.length; i++) links[i].remove();
+          }
+        }
 
         killLinks(); // Immediately kill any speculative links in the DOM
 
         // Observe future DOM insertions to kill speculative links
-        const observer = new MutationObserver(muts => {
-          muts.forEach(m => {
-            m.addedNodes.forEach(n => {
-              if (n.querySelectorAll) killLinks();
+        try {
+          var observer = new MutationObserver(function(muts) {
+            muts.forEach(function(m) {
+              m.addedNodes.forEach(function(n) {
+                if (n && n.querySelectorAll) killLinks();
+              });
             });
           });
-        });
-
-        observer.observe(document.documentElement, { childList: true, subtree: true });
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        } catch {}
 
       } catch {
-        // Silent fail in case of any errors
+        // Silent fail
       }
     }
   };
 
   window.KRY_PLUGINS = window.KRY_PLUGINS || [];
-  window.KRY_PLUGINS.push(plugin); // Push the plugin to the global list
+  window.KRY_PLUGINS.push(plugin);
 })();
