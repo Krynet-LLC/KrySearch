@@ -1,47 +1,73 @@
-/* ==============================
-   zk-gsb-equivalent.js
-   Google Safe Browsing equivalent – local feeds only
-   ============================== */
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
  */
-(function () {
-  "use strict";
+window.KRY_PLUGINS = window.KRY_PLUGINS || [];
 
-  window.KRY_PLUGINS = window.KRY_PLUGINS || [];
-  window.KRY_PLUGINS.push({
-    id: "zk-gsb-equivalent",
-    description: "Safe Browsing equivalent using local feeds only",
+window.KRY_PLUGINS.push({
+  id: "zk-gsb-equivalent",
+  description: "Local feeds scan: openPhish, spamhaus/drop, urlhaus",
+  order: 100,
 
-    async run() {
-          const FEEDS = [
-            { url: "Modules/Feeds/openphish.txt", set: openPhish },
-            { url: "Modules/Feeds/spamhaus_drop.txt", set: spamhaus },
-            { url: "Modules/Feeds/urlhaus.txt", set: malwareHosts }
-          ];
+  run: async function (ctx) {
+    try {
+      // ====== FEED SETS ======
+      const openPhish = new Set();
+      const spamhaus = new Set();
+      const malwareHosts = new Set();
 
-      const BAD = new Set();
+      async function loadFeeds() {
+        const feeds = [
+          { url: "Feeds/openPhish.txt", set: openPhish },
+          { url: "Feeds/drop.txt", set: spamhaus },
+          { url: "Feeds/urlhaus.txt", set: malwareHosts }
+        ];
 
-      // Load local feeds
-      await Promise.all(
-        Object.entries(FEEDS).map(async ([name, path]) => {
+        await Promise.all(feeds.map(async f => {
           try {
-            const r = await fetch(path, { cache: "force-cache" });
-            const text = await r.text();
-            text.split("\n").forEach(line => {
-              const l = line.trim();
-              if (l && !l.startsWith("#") && l.length < 255) {
-                // Remove common prefixes like 0.0.0.0
-                BAD.add(l.replace(/^0\.0\.0\.0\s+/, ""));
-              }
+            const res = await fetch(f.url, { cache: "no-store" });
+            if (!res.ok) return;
+            const txt = await res.text();
+            txt.split("\n").forEach(line => {
+              const d = line.trim().split(/[ ;]/)[0];
+              if (d && !d.startsWith("#")) f.set.add(d);
             });
-          } catch (err) {
-            console.warn(`[KrySearch] Failed to load local feed: ${path}`, err);
-          }
-        })
-      );
+          } catch {}
+        }));
+      }
 
+      await loadFeeds(); // MUST finish before scanning
+
+      // ====== SCORING FUNCTION ======
+      function scoreUrl(rawUrl) {
+        try {
+          const urlObj = new URL(rawUrl);
+          const host = urlObj.hostname.toLowerCase();
+
+          let score = 0;
+          if (openPhish.has(host)) score += 50;
+          if (spamhaus.has(host)) score += 100;
+          if (malwareHosts.has(host)) score += 75;
+
+          return { host, score };
+        } catch {
+          return { host: rawUrl, score: 0 };
+        }
+      }
+
+      // ====== EXAMPLE: SCAN CURRENT URL ======
+      if (ctx && ctx.url) {
+        ctx.scanResult = scoreUrl(ctx.url);
+      }
+
+      // Expose sets & function for debug / further use
+      window.__KRY_FEEDS__ = { openPhish, spamhaus, malwareHosts, scoreUrl };
+
+    } catch (err) {
+      console.error("zk-gsb-equivalent plugin failed:", err);
+    }
+  }
+});
       const entropy = s => new Set(s).size / Math.max(1, s.length);
 
       function heuristicScore(host) {
