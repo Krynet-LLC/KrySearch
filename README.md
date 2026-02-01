@@ -5,9 +5,12 @@
 KrySearch provides users with a way to search the web privately, without the tracking or ads that come with traditional search engines. It also allows users to choose between a variety of search engines, enhancing their control over their privacy and online footprint.
 
 ---
+### LibreJS Compatibility
+[![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)
 
 ## Features
-[![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)
+ **Fully compatible with LibreJS.**
+- **All JavaScript is Free Software (GPL-3.0-or-later), self-hosted, and transparently licensed.**
 - **Privacy-Focused**: Does not collect or store any user data.
 - **Open Source**: Fully open-source and licensed under the **GNU GPL 3.0**.
 - **No Tracking**: No user tracking or personalized ads.
