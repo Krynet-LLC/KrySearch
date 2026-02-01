@@ -51,37 +51,39 @@
           }));
         }
 
-        await loadFeeds();
-
         /* ================= CSP ================= */
-        if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
-          const m = document.createElement("meta");
-          m.httpEquiv = "Content-Security-Policy";
-          m.content = [
-            "default-src 'self'",
-            "script-src 'self'",
-            "object-src 'none'",
-            "base-uri 'none'",
-            "frame-ancestors 'none'",
-            "form-action 'self'",
-             "img-src 'self' https://github.com/Bloodware-Inc/KrySearch/raw/refs/heads/main/lgoo.png",
-            "upgrade-insecure-requests"
-          ].join("; ");
-          document.head.appendChild(m);
+        function applyCSP() {
+          if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
+            const m = document.createElement("meta");
+            m.httpEquiv = "Content-Security-Policy";
+            m.content = [
+              "default-src 'self'",
+              "script-src 'self'",
+              "object-src 'none'",
+              "base-uri 'none'",
+              "frame-ancestors 'none'",
+              "form-action 'self'",
+              "img-src 'self' https://github.com/Bloodware-Inc/KrySearch/raw/refs/heads/main/lgoo.png",
+              "upgrade-insecure-requests"
+            ].join("; ");
+            document.head.appendChild(m);
+          }
         }
 
         /* ================= POPUP & DOWNLOAD KILL ================= */
-        window.open = function () { return null; };
-        document.addEventListener("click", e => {
-          const a = e.target.closest("a");
-          if (!a) return;
-          if (a.hasAttribute("download") || /\.(exe|dll|bat|scr|js)$/i.test(a.href)) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            if (!SILENT) alert("🚫 Download blocked: potential malware");
-          }
-          a.removeAttribute("target");
-        }, true);
+        function blockDownloads() {
+          window.open = function () { return null; };
+          document.addEventListener("click", e => {
+            const a = e.target.closest("a");
+            if (!a) return;
+            if (a.hasAttribute("download") || /\.(exe|dll|bat|scr|js)$/i.test(a.href)) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              if (!SILENT) alert("🚫 Download blocked: potential malware");
+            }
+            a.removeAttribute("target");
+          }, true);
+        }
 
         /* ================= UTIL ================= */
         function extractRedirect(url) {
@@ -135,30 +137,43 @@
         }
 
         /* ================= AUTO ?URL BLOCK ================= */
-        const params = Object.fromEntries(new URLSearchParams(window.location.search));
-        const urlParam = params.url || null;
-        if (urlParam) {
-          const res = await scan(urlParam);
-          if (res.block) {
-            if(!SILENT) alert("🚫 Dangerous ?url= query blocked automatically.");
-            history.replaceState({}, "", location.pathname);
+        async function autoBlock() {
+          const params = Object.fromEntries(new URLSearchParams(window.location.search));
+          const urlParam = params.url || null;
+          if (urlParam) {
+            await loadFeeds();
+            const res = await scan(urlParam);
+            if (res.block) {
+              if(!SILENT) alert("🚫 Dangerous ?url= query blocked automatically.");
+              history.replaceState({}, "", location.pathname);
+            }
           }
         }
 
         /* ================= INTERCEPT ================= */
-        async function intercept(e) {
-          const el = e.target.closest("a, form");
-          if (!el) return;
-          const url = el.href || el.action;
-          if (!url) return;
-          const res = await scan(url);
-          if (res.block) { e.preventDefault(); e.stopImmediatePropagation(); if(!SILENT) alert("🚫 Unsafe URL blocked."); }
+        function interceptClicks() {
+          async function handler(e) {
+            const el = e.target.closest("a, form");
+            if (!el) return;
+            const url = el.href || el.action;
+            if (!url) return;
+            await loadFeeds();
+            const res = await scan(url);
+            if (res.block) { e.preventDefault(); e.stopImmediatePropagation(); if(!SILENT) alert("🚫 Unsafe URL blocked."); }
+          }
+          document.addEventListener("click", handler, true);
+          document.addEventListener("submit", handler, true);
         }
 
-        document.addEventListener("click", intercept, true);
-        document.addEventListener("submit", intercept, true);
+        // run everything
+        applyCSP();
+        blockDownloads();
+        autoBlock();
+        interceptClicks();
 
-      } catch {}
+      } catch (err) {
+        console.error("[KrySearch Plugin Error]", err);
+      }
     }
   };
 
