@@ -36,9 +36,9 @@
           feedsLoaded = true;
 
           const feeds = [
-            { url: "Feeds/openphish.txt", set: openPhish },
-            { url: "Feeds/spamhaus_drop.txt", set: spamhaus },
-            { url: "Feeds/urlhaus.txt", set: malwareHosts }
+            { url: "Modules/Feeds/openphish.txt", set: openPhish },
+            { url: "Modules/Feeds/spamhaus_drop.txt", set: spamhaus },
+            { url: "Modules/Feeds/urlhaus.txt", set: malwareHosts }
           ];
 
           await Promise.all(feeds.map(async f => {
