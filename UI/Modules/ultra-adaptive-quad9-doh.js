@@ -2,58 +2,86 @@
 
 (function () {
   const DOH_SERVERS = [
-    'https://dns.quad9.net/dns-query',   // Primary
-    'https://dns.google/dns-query',      // Secondary fallback
-    'https://cloudflare-dns.com/dns-query', // Tertiary fallback
+    "https://dns.quad9.net/dns-query",
+    "https://dns.google/dns-query",
+    "https://cloudflare-dns.com/dns-query"
   ];
 
   const domainCache = new Map();
 
-  // Detect IPv6 support via WebRTC (fallback if IP fetch fails)
+  // Detect IPv6 support via WebRTC (best-effort)
   async function supportsIPv6() {
-    return new Promise((resolve) => {
+    return new Promise(function (resolve) {
       try {
         const rtc = new RTCPeerConnection({ iceServers: [] });
-        rtc.createDataChannel('ipv6_test');
-        rtc.createOffer().then(offer => rtc.setLocalDescription(offer));
+        rtc.createDataChannel("ipv6_test");
+        rtc.createOffer().then(function (offer) {
+          rtc.setLocalDescription(offer);
+        });
+
         rtc.onicecandidate = function (event) {
-          if (event.candidate && event.candidate.candidate.includes('ipv6')) resolve(true);
-          else resolve(false);
+          if (event && event.candidate && event.candidate.candidate.indexOf("ipv6") !== -1) {
+            resolve(true);
+          }
         };
-        setTimeout(() => resolve(false), 2000); // fallback
-      } catch { resolve(false); }
+
+        setTimeout(function () {
+          resolve(false);
+        }, 2000);
+      } catch {
+        resolve(false);
+      }
     });
   }
 
-  // Simple domain checker
   function isDomain(input) {
     return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(input);
   }
 
-  // DoH resolver
-  async function resolveWithDoH(domain: string, type = 'A') {
-    type = type.toUpperCase();
-    const cacheKey = `${domain}_${type}`;
-    if (domainCache.has(cacheKey)) return domainCache.get(cacheKey);
+  // DoH resolver (NO TypeScript)
+  async function resolveWithDoH(domain, type) {
+    type = (type || "A").toUpperCase();
+    const cacheKey = domain + "_" + type;
 
-    let result: string[] | false = false;
+    if (domainCache.has(cacheKey)) {
+      return domainCache.get(cacheKey);
+    }
 
-    for (const server of DOH_SERVERS) {
+    let result = false;
+
+    for (let i = 0; i < DOH_SERVERS.length; i++) {
+      const server = DOH_SERVERS[i];
       try {
-        const url = `${server}?name=${encodeURIComponent(domain)}&type=${type}`;
-        const res = await fetch(url, { cache: 'no-store', mode: 'cors' });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.Answer)) {
-            result = [];
-            for (const record of data.Answer) {
-              if (type === 'A' || type === 'AAAA') result.push(record.data);
-              else if (type === 'MX') result.push(record.data.split(' ')[1]);
-            }
+        const url =
+          server +
+          "?name=" +
+          encodeURIComponent(domain) +
+          "&type=" +
+          encodeURIComponent(type);
+
+        const res = await fetch(url, {
+          cache: "no-store",
+          mode: "cors"
+        });
+
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        if (!Array.isArray(data.Answer)) continue;
+
+        result = [];
+        for (let j = 0; j < data.Answer.length; j++) {
+          const record = data.Answer[j];
+          if (type === "A" || type === "AAAA") {
+            result.push(record.data);
+          } else if (type === "MX") {
+            const parts = record.data.split(" ");
+            if (parts[1]) result.push(parts[1]);
           }
-          if (result.length) break; // stop at first successful server
         }
-      } catch { continue; }
+
+        if (result.length) break;
+      } catch {}
     }
 
     domainCache.set(cacheKey, result);
@@ -61,38 +89,43 @@
   }
 
   const plugin = {
-    id: 'ultra-adaptive-quad9-doh',
-    description: 'Quad9 DoH resolver, CSP/CORS safe, IPv6-ready, works with full URLs',
-    async run(ctx) {
+    id: "ultra-adaptive-quad9-doh",
+    description: "Quad9 DoH resolver, CSP/CORS safe, IPv6-ready, URL compatible",
+
+    run: async function (ctx) {
       ctx.dnsResolver = { resolve: resolveWithDoH };
       ctx.supportsIPv6 = await supportsIPv6();
 
-      const params = Object.fromEntries(new URLSearchParams(window.location.search));
-      const inputRaw = (params.url || params.q || '').trim();
-      if (!inputRaw) { ctx.output = null; return; }
+      const params = new URLSearchParams(window.location.search);
+      const inputRaw = (params.get("url") || params.get("q") || "").trim();
+      if (!inputRaw) {
+        ctx.output = null;
+        return;
+      }
 
-      // Extract hostname if full URL
       let domain = inputRaw;
       try {
-        const u = new URL(inputRaw);
-        domain = u.hostname;
-      } catch {} // keep original if invalid URL
+        domain = new URL(inputRaw).hostname;
+      } catch {}
 
-      if (isDomain(domain)) {
-        const A = await resolveWithDoH(domain, 'A');
-        const AAAA = await resolveWithDoH(domain, 'AAAA');
-        const MX = await resolveWithDoH(domain, 'MX');
-        ctx.output = {
-          input: inputRaw,
-          domain,
-          A: A || [],
-          AAAA: AAAA || [],
-          MX: MX || [],
-          note: 'Resolved via DoH servers (Quad9, Google, Cloudflare), privacy-safe'
-        };
-      } else {
-        ctx.output = null; // forward non-domain input silently
+      if (!isDomain(domain)) {
+        ctx.output = null;
+        return;
       }
+
+      const A = await resolveWithDoH(domain, "A");
+      const AAAA = await resolveWithDoH(domain, "AAAA");
+      const MX = await resolveWithDoH(domain, "MX");
+
+      ctx.output = {
+        input: inputRaw,
+        domain: domain,
+        A: A || [],
+        AAAA: AAAA || [],
+        MX: MX || [],
+        note:
+          "Resolved via DoH (Quad9 primary, Google & Cloudflare fallback)"
+      };
     }
   };
 
