@@ -7,6 +7,7 @@
 (function() {
   "use strict";
 
+  // Feed sets
   const openPhish = new Set();
   const spamhaus = new Set();
   const malwareHosts = new Set();
@@ -27,7 +28,7 @@
           const d = line.trim().split(/[ ;]/)[0];
           if (d && !d.startsWith("#")) f.set.add(d);
         });
-      } catch {}
+      } catch {} // silent fail
     }));
   }
 
@@ -36,14 +37,17 @@
     description: "Feed-aware URL scanner + CSP-safe GitHub Pages compatible",
     run: async function(ctx) {
       try {
-        ctx.safeFeeds = { openPhish, spamhaus, malwareHosts };
+        // Ensure safe assignment to ctx (avoid extensibility errors)
+        ctx.safeFeeds = ctx.safeFeeds || { openPhish, spamhaus, malwareHosts };
+
+        // Load feeds before scanning
         await loadFeeds();
 
-        // Extract URL param
+        // Get URL parameter
         const params = new URLSearchParams(window.location.search);
         const inputRaw = (params.get("url") || params.get("q") || "").trim();
         if (!inputRaw) {
-          ctx.output = null;
+          ctx.safeFeeds.output = null;
           return;
         }
 
@@ -56,7 +60,8 @@
         const inSpamhaus = spamhaus.has(domain);
         const inMalwareHosts = malwareHosts.has(domain);
 
-        ctx.output = {
+        // Assign to nested object to avoid frozen ctx issues
+        ctx.safeFeeds.output = {
           input: inputRaw,
           domain,
           flagged: {
@@ -67,11 +72,12 @@
           note: "Feed scan complete (openPhish, drop/spamhaus, urlhaus)"
         };
       } catch {
-        ctx.output = null;
+        if(ctx.safeFeeds) ctx.safeFeeds.output = null;
       }
     }
   };
 
+  // Push plugin safely
   window.KRY_PLUGINS = window.KRY_PLUGINS || [];
   window.KRY_PLUGINS.push(plugin);
 })();
