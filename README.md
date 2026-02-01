@@ -28,7 +28,6 @@ KrySearch provides users with a way to search the web privately, without the tra
 
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-KrySearch is licensed under the **GNU General Public License v3.0**. You can view the full text of the license in the [LICENSE](LICENSE) file.
 
 ---
 
