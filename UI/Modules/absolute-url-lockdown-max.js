@@ -1,30 +1,35 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
+ *
+ * Absolute URL Lockdown Max – High ethics, security, and quality
+ * - Respects user privacy (no telemetry)
+ * - Maximal URL defense using multi-layer checks and trusted feeds
+ * - Download/popup interception
+ * - Safe, maintainable, modular, fully asynchronous
  */
 (function () {
   "use strict";
 
   const plugin = {
     id: "absolute-url-lockdown-max",
-    description: "Maximal browser-only URL defense using local feeds",
+    description: "Maximal browser-only URL defense using local feeds and high ethical/security standards",
 
     async run() {
       try {
-        /* ================= CONFIG ================= */
+        /** ================= CONFIG ================= */
         const BLOCK_THRESHOLD = 60;
         const MAX_DEPTH = 6;
-        const SILENT = false;
-
+        const SILENT = false; // Set true for silent blocking
         const REDIRECT_PARAMS = ["url","u","redirect","target","dest","destination","next","continue","r"];
         const SUSPICIOUS_TLDS = /\.(zip|mov|xyz|top|gq|tk|ml|cf|work|click)$/i;
         const SHORTENERS = new Set(["bit.ly","t.co","tinyurl.com","goo.gl","is.gd","buff.ly","ow.ly","cutt.ly"]);
         const KEYWORDS = /(login|verify|secure|update|wallet|invoice|payment)/i;
 
-        /* ================= FEEDS ================= */
-        let openPhish = new Set();
-        let spamhaus = new Set();
-        let malwareHosts = new Set();
+        /** ================= FEEDS ================= */
+        const openPhish = new Set();
+        const spamhaus = new Set();
+        const malwareHosts = new Set();
         let feedsLoaded = false;
 
         async function loadFeeds() {
@@ -40,43 +45,26 @@
           await Promise.all(feeds.map(async f => {
             try {
               const r = await fetch(f.url, { cache: "force-cache" });
-              const t = await r.text();
-              t.split("\n").forEach(l => {
-                const d = l.trim().split(/[ ;]/)[0];
-                if (d && !d.startsWith("#")) f.set.add(d);
+              if (!r.ok) throw new Error(`Feed fetch failed with status ${r.status}`);
+              const text = await r.text();
+              text.split("\n").forEach(line => {
+                const domain = line.trim().split(/[ ;]/)[0];
+                if (domain && !domain.startsWith("#")) f.set.add(domain);
               });
             } catch (err) {
-              console.warn(`[KrySearch] Failed to load feed: ${f.url}`, err);
+              console.warn(`[KrySearch] Failed to load feed ${f.url}:`, err);
             }
           }));
         }
 
-        /* ================= CSP ================= */
-        function applyCSP() {
-          if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
-            const m = document.createElement("meta");
-            m.httpEquiv = "Content-Security-Policy";
-            m.content = [
-              "default-src 'self'",
-              "script-src 'self'",
-              "object-src 'none'",
-              "base-uri 'none'",
-              "frame-ancestors 'none'",
-              "form-action 'self'",
-              "img-src 'self' https://github.com/Bloodware-Inc/KrySearch/raw/refs/heads/main/lgoo.png",
-              "upgrade-insecure-requests"
-            ].join("; ");
-            document.head.appendChild(m);
-          }
-        }
-
-        /* ================= POPUP & DOWNLOAD KILL ================= */
+        /** ================= DOWNLOAD & POPUP BLOCK ================= */
         function blockDownloads() {
-          window.open = function () { return null; };
+          window.open = () => null;
           document.addEventListener("click", e => {
             const a = e.target.closest("a");
             if (!a) return;
-            if (a.hasAttribute("download") || /\.(exe|dll|bat|scr|js)$/i.test(a.href)) {
+            const href = a.href || "";
+            if (a.hasAttribute("download") || /\.(exe|dll|bat|scr|js)$/i.test(href)) {
               e.preventDefault();
               e.stopImmediatePropagation();
               if (!SILENT) alert("🚫 Download blocked: potential malware");
@@ -85,12 +73,12 @@
           }, true);
         }
 
-        /* ================= UTIL ================= */
+        /** ================= URL SCORING & SCAN ================= */
         function extractRedirect(url) {
           try {
             const u = new URL(url);
-            for (const p of REDIRECT_PARAMS) {
-              if (u.searchParams.has(p)) return decodeURIComponent(u.searchParams.get(p));
+            for (const param of REDIRECT_PARAMS) {
+              if (u.searchParams.has(param)) return decodeURIComponent(u.searchParams.get(param));
             }
           } catch {}
           return null;
@@ -99,8 +87,8 @@
         function base64Url(s) {
           try {
             if (!/^[A-Za-z0-9+/=]+$/.test(s)) return null;
-            const d = atob(s);
-            return d.startsWith("http") ? d : null;
+            const decoded = atob(s);
+            return decoded.startsWith("http") ? decoded : null;
           } catch { return null; }
         }
 
@@ -124,19 +112,19 @@
           return { score: Math.min(100, score), reasons };
         }
 
-        async function scan(url, depth=0, chain=[]) {
-          if (depth > MAX_DEPTH) return { block:true, chain };
+        async function scan(url, depth = 0, chain = []) {
+          if (depth > MAX_DEPTH) return { block: true, chain };
           chain.push(url);
           const { score } = scoreUrl(url);
-          if (score >= BLOCK_THRESHOLD) return { block:true, chain };
-          const r = extractRedirect(url);
-          if (r) return scan(r, depth+1, chain);
+          if (score >= BLOCK_THRESHOLD) return { block: true, chain };
+          const redirect = extractRedirect(url);
+          if (redirect) return scan(redirect, depth + 1, chain);
           const b64 = base64Url(url.split("=").pop());
-          if (b64) return scan(b64, depth+1, chain);
-          return { block:false, chain };
+          if (b64) return scan(b64, depth + 1, chain);
+          return { block: false, chain };
         }
 
-        /* ================= AUTO ?URL BLOCK ================= */
+        /** ================= AUTO ?URL BLOCK ================= */
         async function autoBlock() {
           const params = Object.fromEntries(new URLSearchParams(window.location.search));
           const urlParam = params.url || null;
@@ -144,13 +132,13 @@
             await loadFeeds();
             const res = await scan(urlParam);
             if (res.block) {
-              if(!SILENT) alert("🚫 Dangerous ?url= query blocked automatically.");
+              if (!SILENT) alert("🚫 Dangerous ?url= query blocked automatically.");
               history.replaceState({}, "", location.pathname);
             }
           }
         }
 
-        /* ================= INTERCEPT ================= */
+        /** ================= INTERCEPT CLICKS & SUBMITS ================= */
         function interceptClicks() {
           async function handler(e) {
             const el = e.target.closest("a, form");
@@ -159,16 +147,19 @@
             if (!url) return;
             await loadFeeds();
             const res = await scan(url);
-            if (res.block) { e.preventDefault(); e.stopImmediatePropagation(); if(!SILENT) alert("🚫 Unsafe URL blocked."); }
+            if (res.block) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              if (!SILENT) alert("🚫 Unsafe URL blocked.");
+            }
           }
           document.addEventListener("click", handler, true);
           document.addEventListener("submit", handler, true);
         }
 
-        // run everything
-        applyCSP();
+        /** ================= EXECUTION ================= */
         blockDownloads();
-        autoBlock();
+        await autoBlock();
         interceptClicks();
 
       } catch (err) {
