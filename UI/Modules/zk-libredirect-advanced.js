@@ -1,132 +1,182 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
+ *
+ * ZK LibRedirect Advanced – Self-Healing Enterprise Edition
+ * - Zero-knowledge, nocookie
+ * - Dynamic mirrors with reputation filtering
+ * - Tor/I2P hardening
+ * - Automatic config refresh & dead-mirror detection
+ * - Highest cybersecurity & privacy standards
  */
-window.KRY_PLUGINS = window.KRY_PLUGINS || [];
+(function () {
+  "use strict";
 
-window.KRY_PLUGINS.push({
-  id: "zk-libredirect-advanced",
-  description: "Zero-knowledge nocookie + dynamic mirrors + domain reputation + Tor/I2P hardening",
+  window.KRY_PLUGINS = window.KRY_PLUGINS || [];
 
-  async run(){
-    "use strict";
+  window.KRY_PLUGINS.push({
+    id: "zk-libredirect-advanced-sh",
+    description: "Self-healing, zero-knowledge nocookie redirect plugin with live updates, mirror validation, and Tor/I2P hardening",
 
-    const CFG = window.KRY_CONFIG || {};
-    const ENABLED = CFG.privacy?.nocookie !== false;
-    if (!ENABLED) return;
+    config: {
+      CONFIG_URL: "https://raw.githubusercontent.com/libredirect/browser_extension/refs/heads/master/src/config.json",
+      REFRESH_INTERVAL_MS: 15 * 60 * 1000, // 15 minutes
+      MIRROR_REPUTATION_MIN: 50,
+      ENABLED: true,
+      DEBUG: false
+    },
 
-    const CONFIG_URL = "https://raw.githubusercontent.com/libredirect/browser_extension/refs/heads/master/src/config.json";
+    async run() {
+      if (!this.config.ENABLED) return;
 
-    let MAP = null;
+      let MAP = null;
 
-    /* ===================== HELPERS ===================== */
+      /** ===================== HELPERS ===================== */
 
-    async function loadConfig(){
-      if (MAP) return MAP;
-      const json = await fetch(CONFIG_URL, {
-        cache: "force-cache",
-        credentials: "omit",
-        referrerPolicy: "no-referrer"
-      }).then(r=>r.json());
+      /** Fetch LibRedirect config */
+      const loadConfig = async () => {
+        try {
+          const res = await fetch(this.config.CONFIG_URL, {
+            cache: "force-cache",
+            credentials: "omit",
+            referrerPolicy: "no-referrer"
+          });
+          if (!res.ok) throw new Error(`Failed to fetch config: ${res.status}`);
+          const json = await res.json();
+          const { frontends = {}, services = {} } = json;
+          const map = {};
 
-      const {frontends={}, services={}} = json;
-      const map = {};
+          for (const [svc, def] of Object.entries(services)) {
+            if (!def.targets || !def.frontends) continue;
 
-      for(const [svc, def] of Object.entries(services)){
-        if(!def.targets || !def.frontends) continue;
-        for(const domain of def.targets){
-          const mirrors = def.frontends
-            .map(f=>frontends[f]?.url)
-            .filter(Boolean)
-            .map(u=>{ try{ return new URL(u).hostname; } catch{return null} })
-            .filter(Boolean);
+            for (const domain of def.targets) {
+              const mirrors = def.frontends
+                .map(f => frontends[f]?.url)
+                .filter(Boolean)
+                .map(u => { try { return new URL(u).hostname; } catch { return null; } })
+                .filter(Boolean);
 
-          if(mirrors.length) map[domain] = {mirrors, service: svc};
+              if (mirrors.length) map[domain] = { mirrors, service: svc };
+            }
+          }
+
+          MAP = map;
+          if (this.config.DEBUG) console.info("[KrySearch] Config loaded", map);
+        } catch (err) {
+          console.error("[KrySearch] Failed to load config", err);
+          MAP = MAP || {};
         }
-      }
+      };
 
-      MAP = map;
-      return map;
+      /** Random item from array */
+      const randomItem = arr => arr[Math.floor(Math.random() * arr.length)];
+
+      /** Simple reputation scoring */
+      const simpleReputation = domain => {
+        let score = 100;
+        try {
+          if (domain.endsWith(".xyz") || domain.endsWith(".top") || domain.endsWith(".cf")) score -= 50;
+          if (domain.length > 30) score -= 10;
+          if (/^[0-9.]+$/.test(domain)) score -= 20; // IP hosts
+        } catch {}
+        return Math.max(0, score);
+      };
+
+      /** Validate HTTPS mirror availability (quick check) */
+      const validateMirror = async host => {
+        try {
+          await fetch(`https://${host}/`, { method: "HEAD", mode: "no-cors" });
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      /** Rewrite URL with reputation filtering & mirror validation */
+      const rewriteURL = async raw => {
+        try {
+          const u = new URL(raw, location.origin);
+          const entry = MAP[u.hostname];
+          if (!entry) return raw;
+
+          // filter mirrors by reputation
+          let safeMirrors = entry.mirrors.filter(m => simpleReputation(m) >= this.config.MIRROR_REPUTATION_MIN);
+
+          // async dead mirror filtering
+          const checks = safeMirrors.map(m => validateMirror(m).then(ok => ok ? m : null));
+          safeMirrors = (await Promise.all(checks)).filter(Boolean);
+
+          if (!safeMirrors.length) return raw;
+
+          const mirror = randomItem(safeMirrors);
+          u.hostname = mirror;
+          u.protocol = "https:";
+          return u.href;
+        } catch {
+          return raw;
+        }
+      };
+
+      /** Detect Tor/I2P environment */
+      const isTorOrI2P = () => /TorBrowser|I2P/.test(navigator.userAgent || "");
+
+      /** ===================== LINK INTERCEPTION ===================== */
+      const interceptClick = async e => {
+        try {
+          const a = e.target.closest("a[href]");
+          if (!a) return;
+
+          const raw = a.getAttribute("href");
+          if (!raw || raw.startsWith("#") || raw.startsWith("javascript:")) return;
+
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          let target = await rewriteURL(raw);
+
+          if (isTorOrI2P()) {
+            const urlObj = new URL(target, location.origin);
+            urlObj.protocol = "https:";
+            target = urlObj.href;
+          }
+
+          location.href = target;
+        } catch (err) {
+          if (this.config.DEBUG) console.warn("[KrySearch] Link interception failed", err);
+        }
+      };
+
+      document.addEventListener("click", interceptClick, true);
+
+      /** ===================== HANDLE ?url= QUERY ===================== */
+      const handleURLParam = async () => {
+        const params = new URLSearchParams(location.search);
+        if (!params.has("url")) return;
+
+        let target = await rewriteURL(decodeURIComponent(params.get("url")));
+
+        if (isTorOrI2P()) {
+          const urlObj = new URL(target, location.origin);
+          urlObj.protocol = "https:";
+          target = urlObj.href;
+        }
+
+        history.replaceState({}, "", location.pathname);
+        location.replace(target);
+      };
+
+      /** ===================== SELF-HEALING LOOP ===================== */
+      const selfHeal = async () => {
+        await loadConfig();
+        await handleURLParam();
+        if (this.config.DEBUG) console.info("[KrySearch] Self-healing iteration complete");
+      };
+
+      // Initial run
+      await selfHeal();
+
+      // Periodic refresh
+      setInterval(selfHeal, this.config.REFRESH_INTERVAL_MS);
     }
-
-    function randomItem(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-
-    function simpleReputation(domain){
-      // crude reputation scoring: TLD / known bad / suspicious length
-      let score = 100;
-      if(domain.endsWith(".xyz")||domain.endsWith(".top")||domain.endsWith(".cf")) score -= 50;
-      if(domain.length>30) score -= 10;
-      if(/^[0-9.]+$/.test(domain)) score -= 20; // IP hosts
-      return score; // higher is safer
-    }
-
-    function rewriteURL(raw, map, thresholds = {min: 50}){
-      try{
-        const u = new URL(raw, location.origin);
-        const entry = map[u.hostname];
-        if(!entry) return raw;
-
-        // filter mirrors by reputation threshold
-        const safeMirrors = entry.mirrors.filter(m=>simpleReputation(m)>=thresholds.min);
-        if(!safeMirrors.length) return raw;
-
-        const mirror = randomItem(safeMirrors);
-        u.hostname = mirror;
-        u.protocol = "https:";
-        return u.href;
-      }catch{return raw;}
-    }
-
-    function isTorOrI2P(){
-      try{
-        const ua = navigator.userAgent || "";
-        return /TorBrowser|I2P/.test(ua);
-      }catch{return false;}
-    }
-
-    /* ===================== INTERCEPT LINKS ===================== */
-
-    async function intercept(e){
-      const a = e.target.closest("a[href]");
-      if(!a) return;
-      const raw = a.getAttribute("href");
-      if(!raw || raw.startsWith("#") || raw.startsWith("javascript:")) return;
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const map = await loadConfig();
-      let target = rewriteURL(raw, map, {min: 50});
-
-      // Tor/I2P hardening: force HTTPS & skip low-reputation mirrors
-      if(isTorOrI2P()){
-        const urlObj = new URL(target, location.origin);
-        if(urlObj.protocol !== "https:") urlObj.protocol = "https:";
-        target = urlObj.href;
-      }
-
-      location.href = target;
-    }
-
-    document.addEventListener("click", intercept, true);
-
-    /* ===================== HANDLE ?url= ===================== */
-
-    const p = new URLSearchParams(location.search);
-    if(p.has("url")){
-      const map = await loadConfig();
-      let t = rewriteURL(decodeURIComponent(p.get("url")), map, {min:50});
-
-      // Tor/I2P hardening
-      if(isTorOrI2P()){
-        const uo = new URL(t, location.origin);
-        uo.protocol = "https:";
-        t = uo.href;
-      }
-
-      history.replaceState({}, "", location.pathname);
-      location.replace(t);
-    }
-
-  }
-});
+  });
+})();
