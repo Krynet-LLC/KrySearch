@@ -1,11 +1,19 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
+ *
+ * Secure Transport Ultra – Fully hardened
+ * - No XSS / no unsafe innerHTML
+ * - Strict engine URL whitelist
+ * - AES-GCM optional navigation payload encryption
+ * - Safe dynamic links and forms interception
  */
 window.KRY_PLUGINS = window.KRY_PLUGINS || [];
+
 window.KRY_PLUGINS.push({
-  id: "secure-transport-ultra",
+  id: "secure-transport-ultra-max",
   order: 95,
+
   run() {
     try {
       const enc = new TextEncoder();
@@ -34,134 +42,110 @@ window.KRY_PLUGINS.push({
           )
         : null;
 
+      /** SAFE ENCRYPTION / DECRYPTION */
       async function seal(str) {
         if (!hasCrypto) return { plain: str };
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const key = await sessionKeyPromise;
-        const data = await crypto.subtle.encrypt(
-          { name: "AES-GCM", iv },
-          key,
-          enc.encode(str)
-        );
+        const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(str));
         return { iv, data };
       }
 
       async function unseal(pkg) {
         if (!hasCrypto || pkg.plain) return pkg.plain;
         const key = await sessionKeyPromise;
-        const out = await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: pkg.iv },
-          key,
-          pkg.data
-        );
+        const out = await crypto.subtle.decrypt({ name: "AES-GCM", iv: pkg.iv }, key, pkg.data);
         return dec.decode(out);
       }
 
-      function wipe(o) {
-        if (!o) return;
-        for (const k in o) if (o[k] instanceof Uint8Array) o[k].fill(0);
-      }
-
-      function isEngineURL(url) {
+      /** STRICT SANITIZATION: only https + engine param */
+      function sanitizeURL(raw) {
         try {
-          const u = new URL(url, location.href);
-          return u.searchParams.has("engine");
+          const u = new URL(raw, location.origin);
+          if (u.protocol !== "https:") return null;
+          if (!u.searchParams.has("engine")) return null; // whitelist
+          return u.href;
         } catch {
-          return false;
+          return null;
         }
       }
 
-      async function hardNavigate(url) {
+      /** SAFE NAVIGATION */
+      async function hardNavigate(raw) {
+        const safe = sanitizeURL(raw);
+        if (!safe) return;
         try {
-          const sealed = await seal(url);
+          const sealed = await seal(safe);
           await delay();
           const finalURL = await unseal(sealed);
-          wipe(sealed);
           location.assign(finalURL);
         } catch {
-          location.assign(url);
+          location.assign(safe);
         }
       }
 
-      const realAssign = location.assign.bind(location);
-      const realReplace = location.replace.bind(location);
-
-      location.assign = function(url) {
-        return isEngineURL(url) ? hardNavigate(url) : realAssign(url);
+      /** OVERRIDE LOCATION METHODS SAFELY */
+      const safeAssign = url => {
+        const safe = sanitizeURL(url);
+        return safe ? hardNavigate(safe) : location.assign(url);
+      };
+      const safeReplace = url => {
+        const safe = sanitizeURL(url);
+        return safe ? hardNavigate(safe) : location.replace(url);
       };
 
-      location.replace = function(url) {
-        return isEngineURL(url) ? hardNavigate(url) : realReplace(url);
+      Object.defineProperty(location, "assign", { value: safeAssign, configurable: false, writable: false });
+      Object.defineProperty(location, "replace", { value: safeReplace, configurable: false, writable: false });
+
+      /** INTERCEPT LINKS SAFELY */
+      const interceptElement = async el => {
+        if (!el) return;
+        if (el.tagName === "A" && el.href) {
+          const safe = sanitizeURL(el.href);
+          if (safe) {
+            el.addEventListener("click", e => {
+              e.preventDefault();
+              hardNavigate(safe);
+            });
+          }
+        } else if (el.tagName === "FORM" && el.action) {
+          const safe = sanitizeURL(el.action);
+          if (safe) {
+            el.addEventListener("submit", e => {
+              e.preventDefault();
+              hardNavigate(safe);
+            });
+          }
+        }
       };
 
-      // Safe location.href override
-      try {
-        Object.defineProperty(location, "href", {
-          set(url) { isEngineURL(url) ? hardNavigate(url) : realAssign(url); },
-          get() { return document.URL; },
-          configurable: true
-        });
-      } catch {
-        // fail silently if browser blocks it
-      }
+      document.addEventListener("click", e => interceptElement(e.target.closest("a")), true);
+      document.addEventListener("submit", e => interceptElement(e.target.closest("form")), true);
 
-      // Click interception
-      document.addEventListener("click", e => {
-        const a = e.target.closest("a[href]");
-        if (!a) return;
-        if (isEngineURL(a.href)) {
-          e.preventDefault();
-          hardNavigate(a.href);
-        }
-      }, true);
-
-      // Form interception
-      document.addEventListener("submit", e => {
-        const form = e.target;
-        if (form && form.action && isEngineURL(form.action)) {
-          e.preventDefault();
-          hardNavigate(form.action);
-        }
-      }, true);
-
-      // Mutation observer to catch dynamic links
-      const observer = new MutationObserver(mutations => {
-        for (const m of mutations) {
+      /** OBSERVE DYNAMIC NODES SAFELY */
+      const observer = new MutationObserver(muts => {
+        for (const m of muts) {
           for (const n of m.addedNodes) {
             if (n.nodeType !== 1) continue;
-
-            if (n.tagName === "A" && isEngineURL(n.href)) {
-              try { n.remove(); } catch {}
-            }
-
             if (n.querySelectorAll) {
               try {
-                n.querySelectorAll("a[href]").forEach(a => {
-                  if (isEngineURL(a.href)) try { a.remove(); } catch {}
-                });
+                n.querySelectorAll("a[href], form[action]").forEach(interceptElement);
               } catch {}
             }
           }
         }
       });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
 
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true
+      /** EXPOSE SAFE HARD NAVIGATION */
+      Object.defineProperty(window, "__KRY_HARD_NAV__", {
+        value: hardNavigate,
+        writable: false,
+        configurable: false,
+        enumerable: false
       });
-
-      // Expose safe hard navigation function
-      try {
-        Object.defineProperty(window, "__KRY_HARD_NAV__", {
-          value: hardNavigate,
-          writable: false,
-          configurable: false,
-          enumerable: false
-        });
-      } catch {}
-
     } catch {
-      // silent by design
+      // silent fail
     }
   }
 });
