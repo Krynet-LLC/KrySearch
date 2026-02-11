@@ -1,23 +1,36 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
+ * Modernized KrySearch JS with forced dark mode
  */
 'use strict';
 
 let CONFIG = null;
 
-// Load JSON config
+// --- CONFIG LOADING ---
 const loadConfig = async () => {
   try {
     const res = await fetch('Config/config.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     CONFIG = await res.json();
+    applyForcedDarkMode();
   } catch (err) {
     console.error('[KrySearch] Failed to load config.json:', err);
     CONFIG = null;
   }
 };
 
-// Run plugins if any
+// --- FORCED DARK MODE ---
+const applyForcedDarkMode = () => {
+  document.documentElement.style.background = '#1f1f1f';
+  document.documentElement.style.color = '#ffffff';
+  document.body.style.background = '#1f1f1f';
+  document.body.style.color = '#ffffff';
+  // If there’s a theme toggle switch, disable it
+  const toggle = document.getElementById('dark-mode-toggle');
+  if(toggle) toggle.checked = true;
+};
+
+// --- PLUGIN SYSTEM ---
 const runPlugins = () => {
   if (!Array.isArray(window.KRY_PLUGINS)) return;
   window.KRY_PLUGINS
@@ -29,7 +42,7 @@ const runPlugins = () => {
     });
 };
 
-// Populate engine dropdown
+// --- ENGINE DROPDOWN ---
 const populateEngineDropdown = () => {
   if (!CONFIG) return;
   const select = document.getElementById('engine');
@@ -37,7 +50,6 @@ const populateEngineDropdown = () => {
 
   select.textContent = '';
   const engines = { ...CONFIG.engines.open_source, ...CONFIG.engines.closed_source };
-
   Object.entries(engines).forEach(([key, eng]) => {
     const opt = document.createElement('option');
     opt.value = key;
@@ -50,7 +62,7 @@ const populateEngineDropdown = () => {
   if (engineParam in engines) select.value = engineParam;
 };
 
-// Sanitize URL
+// --- URL SANITIZATION ---
 const sanitizeUrl = url => {
   try {
     const u = new URL(url, location.origin);
@@ -60,7 +72,7 @@ const sanitizeUrl = url => {
   }
 };
 
-// Build search engine URL
+// --- BUILD SEARCH URL ---
 const buildSearchUrl = (query, engine) => {
   if (!engine) return null;
   const encodedQuery = encodeURIComponent(query.trim());
@@ -82,21 +94,21 @@ const buildSearchUrl = (query, engine) => {
   return sanitizeUrl(target);
 };
 
-// Navigate safely
+// --- NAVIGATION ---
 const navigateSafe = url => {
   if (!url) return;
   if(typeof window.__KRY_HARD_NAV__ === 'function') window.__KRY_HARD_NAV__(url);
   else location.assign(url);
 };
 
-// Handle query / URL
+// --- HANDLE QUERY / URL ---
 const handleQuery = (value, engineKey, isUrl=false) => {
   if(!CONFIG || !value) return;
   const engines = { ...CONFIG.engines.open_source, ...CONFIG.engines.closed_source };
   const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
   if(!engine) return;
 
-  let target = isUrl 
+  const target = isUrl 
     ? sanitizeUrl(value.startsWith('http://') || value.startsWith('https://') ? value : 'https://' + value)
     : buildSearchUrl(value, engine);
 
@@ -104,7 +116,7 @@ const handleQuery = (value, engineKey, isUrl=false) => {
   navigateSafe(target);
 };
 
-// Init
+// --- INIT ---
 document.addEventListener('DOMContentLoaded', async () => {
   window.KRY_CONTEXT = Object.freeze({
     ua: navigator.userAgent,
