@@ -1,156 +1,145 @@
-# KrySearch
+```
+# 🔍 KrySearch
 
-**KrySearch** is a privacy-first, open-source search router built for **Krynet, LLC**. It routes your searches through multiple engines while ensuring no personal data is logged or stored. **KrySearch** is fully **GNU General Public License (GPL) 3.0**-licensed.
+[![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)  
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
+[![GitHub stars](https://img.shields.io/github/stars/Bloodware-Inc/KrySearch?style=social)](https://github.com/Bloodware-Inc/KrySearch/stargazers)  
 
-KrySearch provides users with a way to search the web privately, without the tracking or ads that come with traditional search engines. It also allows users to choose between a variety of search engines, enhancing their control over their privacy and online footprint.
+**KrySearch** is a **privacy-first, open-source search router** by **Krynet, LLC**.  
+Route your searches through multiple engines **without logging or storing personal data**, fully **GPL 3.0 licensed**.  
 
----
-### LibreJS Compatibility
-[![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)
-
-## Features
-- **Fully compatible with LibreJS.**
-- **All JavaScript is Free Software (GPL-3.0-or-later), self-hosted, and transparently licensed.**
-- **Privacy-Focused**: Does not collect or store any user data.
-- **Open Source**: Fully open-source and licensed under the **GNU GPL 3.0**.
-- **No Tracking**: No user tracking or personalized ads.
-- **Encrypted**: All search queries are routed securely over HTTPS.
-- **Multiple Search Engines**: Users can choose between a variety of search engines, including both open-source and closed-source options.
-- **No Cookies**: No cookies are used, ensuring full anonymity during searches.
-- **CSP and CORS Safe**: Works seamlessly with Content Security Policies (CSP) and Cross-Origin Resource Sharing (CORS), making it compatible with platforms like GitHub Pages.
-- **No Ads or Personalization**: Unlike traditional search engines, KrySearch doesn't show personalized ads or track users.
-- **Encrypted Relay for search queries**
-- **Hybrid Post-Quantum + Classical Crypto**
-- **Search Isolation to prevent any leaks**
-- **Fully Zero-Knowledge — KrySearch never stores, logs, or sees your queries**
-- **HTTPS-only enforcement for ?url= redirects**
-- **CSP-compliant and XSS-safe**
-
-## License
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+Search privately, avoid ads, and choose engines for ultimate online privacy control.  
 
 ---
 
-## How It Works
+## ⚡ Features
 
-**KrySearch** operates as a **search router**, routing queries to search engines of your choice while protecting your privacy. Here’s how it works:
-
-1. **User Input**: You enter a query or URL into the search bar.
-2. **Search Routing**: The query is routed to the selected search engine without any tracking or storage of personal data.
-3. **Return Results**: The results are displayed directly from the search engine, with no intermediary tracking or modification.
-
-KrySearch supports multiple search engines, including privacy-focused open-source engines and traditional closed-source ones. You can switch between them according to your needs.
+| Feature | Description |
+|---------|-------------|
+| ✅ LibreJS Compatible | Fully compatible with LibreJS |
+| 🟢 Free Software | GPL-3.0-or-later, self-hosted JS |
+| 🔒 Privacy-Focused | No data collection or tracking |
+| 🌐 Open Source | Transparent and auditable |
+| 🚫 No Tracking | No ads or profiling |
+| 🔐 Encrypted | All queries over HTTPS |
+| 🔀 Multiple Engines | Open-source & closed-source options |
+| 🍪 No Cookies | Full anonymity |
+| 🧱 CSP & CORS Safe | Works on GitHub Pages and strict policies |
+| 🛡️ No Ads/Personalization | No ads, no tracking |
+| 🔑 Encrypted Relay | Hybrid post-quantum + classical crypto |
+| ⚡ Search Isolation | Prevent leaks |
+| 🗝️ Zero-Knowledge | Queries never stored or logged |
+| 🔒 HTTPS-only enforcement | For ?url= redirects |
+| 🛡️ CSP & XSS Safe | Works on strict pages |
 
 ---
 
-## Installation
+## 🔧 How It Works
 
-To get started with **KrySearch**, follow these steps:
+**KrySearch** acts as a **search router**:
+
+1. **User Input** – enter a query or URL  
+2. **Search Routing** – safely routed to the selected engine  
+3. **Return Results** – results come directly from the engine, no tracking
+
+---
+
+## 🚀 Installation
 
 ### Prerequisites
-- A modern browser (Chrome, Firefox, Edge, Safari)
-- Basic knowledge of how to deploy web projects
 
-### Steps:
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Bloodware-Inc/KrySearch.git
-Navigate to the project directory:
-   ```bash
+- Modern browser (Chrome, Firefox, Edge, Safari)  
+- Basic knowledge of deploying web projects  
+
+### Steps
+
+```bash
+# Clone repository
+git clone https://github.com/Bloodware-Inc/KrySearch.git
+
+# Enter project folder
 cd KrySearch
+
+# Open index.html in your browser or deploy to a server
 ```
-Open index.html in your browser, or deploy it to a server.
 
-Deployment on GitHub Pages
-If you want to deploy KrySearch on GitHub Pages, follow these steps:
+### 📦 GitHub Pages Deployment
 
-Push the code to your GitHub repository.
+1. Push code to your GitHub repo  
+2. Go to **Settings → Pages**  
+3. Set source branch (**main** or **gh-pages**)  
+4. Save → your KrySearch instance is live  
 
-Go to your repository’s Settings page.
+---
 
-Scroll down to GitHub Pages and set the source branch to main or gh-pages.
+## 📝 Usage
 
-Once saved, your KrySearch instance should be live and accessible.
+| Action | Description |
+|--------|-------------|
+| 🔍 Search | Enter queries or URLs |
+| ⚙️ Select Engine | Pick preferred engine from dropdown |
+| 🕵️ Privacy Mode | All queries are private |
 
-Usage
-Search: Enter a search query in the search bar. You can also paste URLs directly into the search bar.
+### Query Parameters
 
-Select Engine: Choose your preferred search engine from the dropdown menu. KrySearch supports both open-source and closed-source engines.
+| Parameter | Use |
+|-----------|-----|
+| `?q=<query>` | Search query |
+| `?url=<url>` | Direct URL |
 
-Privacy Mode: All queries are performed in private mode to ensure your privacy.
+**Example URLs:**
 
-Query Parameters:
-
-?q=<query>: Use this parameter for a search query.
-
-?url=<url>: Use this parameter to visit a direct URL.
-Example:
-
+```
 https://yourdomain.com/?q=privacy
-
 https://yourdomain.com/?url=https://example.com
+```
 
-Supported Search Engines
-Open Source: DuckDuckGo, StartPage, Qwant, and more.
+---
 
-Closed Source: Google, Bing, and others.
+## 🛡️ Privacy & Security
 
-Privacy and Security
-KrySearch is designed with user privacy at its core. Here’s how it keeps your searches private:
+- **No Data Collection** – queries never logged  
+- **No Cookies** – full anonymity  
+- **Secure Connections** – HTTPS enforced  
+- **No Personalization** – no tracking, no ads  
+- **Zero-Knowledge** – queries never stored  
+- **Encrypted Relay** – hybrid post-quantum + classical crypto  
+- **CSP & XSS Safe** – works on strict pages  
 
-No Data Collection: KrySearch does not collect or store any data from your searches. It simply routes your queries to search engines.
+---
 
-No Cookies: KrySearch does not use cookies or any form of local storage, ensuring your browsing remains anonymous.
+## 🤝 Contributing
 
-Secure Connections: All requests are made over HTTPS to ensure your queries remain private and cannot be intercepted.
+We welcome contributions!  
 
-No Personalization: Unlike many search engines, KrySearch does not show personalized ads or track users.
-
-Contributing
-We welcome contributions to KrySearch! If you'd like to enhance KrySearch, add new features, or fix bugs, here's how to get started:
-
-Steps for Contributing:
-Fork the repository on GitHub.
-
-Clone your forked repository:
+1. Fork the repo  
+2. Clone your fork:  
 ```bash
 git clone https://github.com/YOUR_USERNAME/KrySearch.git
 ```
-Create a new branch for your changes:
+3. Create a branch:  
 ```bash
 git checkout -b feature-branch
 ```
-Make your changes. You can add new features, improve the UI, optimize the code, or implement new search engines.
-
-Test your changes thoroughly to ensure they work correctly and do not break any existing functionality.
-
-Commit your changes:
+4. Make changes & test  
+5. Commit & push:  
 ```bash
-git commit -am 'Add feature or fix bug'
-```
-Push to your branch:
-
+git commit -am "Add feature or fix bug"
 git push origin feature-branch
-Open a pull request with a description of the changes you made.
+```
+6. Open a pull request  
 
-We also encourage users to create issues if they encounter bugs or want to request new features.
+**Ideas:** add engines, privacy features, UI improvements, better error handling
 
-Ideas for Contribution:
-Add support for more search engines.
+---
 
-Integrate more privacy features.
+## ⚙️ Extending KrySearch
 
-Improve the user interface.
+<details>
+<summary>Adding a New Search Engine</summary>
 
-Enhance error handling and recovery.
+Edit `search.js` and extend the `CONFIG` object:
 
-Extending KrySearch
-KrySearch is open-source, and you can easily extend it with additional functionality. Here are some ideas if you want to add more features:
-
-Adding a New Search Engine
-You can extend KrySearch to include more search engines by modifying the search.js file. The search engine configuration is stored in the CONFIG object, which can be extended with more search engines.
-
-Example:
 ```javascript
 const engines = { 
   ...CONFIG.engines.open_source, 
@@ -162,36 +151,42 @@ const engines = {
   }
 };
 ```
-Customizing the UI
-Feel free to modify the HTML and CSS to customize the appearance of KrySearch. For instance, you can change the theme, layout, or button styles to match your brand or personal preference.
+</details>
 
-Using External Plugins
-You can also extend KrySearch using JavaScript plugins. To create a plugin, simply write your script and push it into the window.KRY_PLUGINS array. For example:
+<details>
+<summary>Customizing the UI</summary>
+
+Modify HTML/CSS for theme, layout, or branding changes.
+</details>
+
+<details>
+<summary>Using Plugins</summary>
+
 ```javascript
 window.KRY_PLUGINS.push({
   id: 'new-feature',
   description: 'Adds new feature to KrySearch',
   run() {
-    // Add your custom logic here
+    // Your custom logic
   }
 });
 ```
-Make sure to follow the best practices for privacy and security when adding new features.
+> ⚠️ Always follow privacy & security best practices
+</details>
 
-# About Krynet, LLC
-Krynet, LLC is a privacy-first technology company committed to creating tools and services that prioritize user security and data protection. KrySearch is part of the Krynet ecosystem, which aims to provide secure, transparent, and privacy-respecting alternatives to traditional internet services.
-
-For more information about Krynet, LLC and its mission, visit Krynet.ai.
-
-## Contact
-Email: contact@krynet.ai
-Website: https://krynet.ai
 ---
 
-### Key Updates for Extensibility:
+## 🏢 About Krynet, LLC
 
-1. **Extending the Search Engines**: Added instructions for users to add more search engines to KrySearch by editing the `search.js` file.
-2. **Customizing the UI**: Provided instructions for users to customize the look and feel of KrySearch.
-3. **Using Plugins**: Mentioned how users can write and add external plugins to extend the functionality of KrySearch.
-4. **Contribution Guidelines**: Updated the contributing section with clear steps, ideas for features, and how to submit pull requests.
-5. **Open Source Freedom**: Reinforced the idea that KrySearch is open-source and can be modified and extended based on users' needs.
+Krynet, LLC is a **privacy-first tech company** building secure, transparent tools.  
+KrySearch is part of the Krynet ecosystem for secure, privacy-respecting alternatives to traditional web services.
+
+- 🌐 Website: [https://krynet.ai](https://krynet.ai)  
+- ✉️ Email: contact@krynet.ai  
+
+---
+
+## 🔑 License
+
+KrySearch is licensed under **GNU GPL v3**: [https://www.gnu.org/licenses/gpl-3.0](https://www.gnu.org/licenses/gpl-3.0)
+```
