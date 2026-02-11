@@ -2,13 +2,12 @@
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
  *
- * ZK LibRedirect Advanced – Hardened, Zero-Vulnerability Edition
+ * ZK LibRedirect Advanced – Hardened Enterprise Edition
  * - Zero-knowledge, nocookie
  * - Dynamic mirrors with reputation filtering
  * - Tor/I2P hardening
  * - Self-healing with safe periodic config refresh
- * - Fully secure: no unsafe eval, no javascript: or data URL execution
- * - Enterprise privacy & cybersecurity standards
+ * - Fully safe from client-side XSS and unsafe navigation
  */
 (function () {
   "use strict";
@@ -16,9 +15,9 @@
   window.KRY_PLUGINS = window.KRY_PLUGINS || [];
 
   window.KRY_PLUGINS.push({
-    id: "zk-libredirect-advanced-hardened",
+    id: "zk-libredirect-advanced-hardened-xss",
     description:
-      "Self-healing, zero-knowledge nocookie redirect plugin with live updates, mirror validation, and Tor/I2P hardening",
+      "Self-healing, zero-knowledge nocookie redirect plugin with live updates, mirror validation, and Tor/I2P hardening, XSS safe",
 
     config: Object.freeze({
       CONFIG_URL: "https://raw.githubusercontent.com/libredirect/browser_extension/refs/heads/master/src/config.json",
@@ -35,7 +34,6 @@
 
       /** ===================== HELPERS ===================== */
 
-      // Fetch and parse LibRedirect config safely
       const loadConfig = async () => {
         try {
           const res = await fetch(this.config.CONFIG_URL, {
@@ -50,14 +48,12 @@
 
           for (const [svc, def] of Object.entries(services)) {
             if (!def.targets || !def.frontends) continue;
-
             for (const domain of def.targets) {
               const mirrors = def.frontends
                 .map(f => frontends[f]?.url)
                 .filter(u => typeof u === "string")
                 .map(u => { try { return new URL(u).hostname; } catch { return null; } })
                 .filter(Boolean);
-
               if (mirrors.length) map[domain] = { mirrors, service: svc };
             }
           }
@@ -69,10 +65,8 @@
         }
       };
 
-      // Pick a random item from an array safely
       const randomItem = arr => Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
 
-      // Simple reputation scoring
       const simpleReputation = domain => {
         let score = 100;
         if (!domain || typeof domain !== "string") return 0;
@@ -84,31 +78,22 @@
         return Math.max(0, score);
       };
 
-      // Validate HTTPS mirror availability (safe HEAD check)
       const validateMirror = async host => {
         if (!host) return false;
         try {
-          // Use HEAD request to check existence without downloading
           await fetch(`https://${host}/`, { method: "HEAD", mode: "no-cors" });
           return true;
-        } catch {
-          return false;
-        }
+        } catch { return false; }
       };
 
-      // Rewrite URL with reputation & mirror validation
       const rewriteURL = async raw => {
         try {
           const u = new URL(raw, location.origin);
           const entry = MAP[u.hostname];
           if (!entry) return u.href;
 
-          // filter mirrors by reputation
           let safeMirrors = entry.mirrors.filter(m => simpleReputation(m) >= this.config.MIRROR_REPUTATION_MIN);
-
-          // async dead mirror filtering
           safeMirrors = (await Promise.all(safeMirrors.map(m => validateMirror(m).then(ok => ok ? m : null)))).filter(Boolean);
-
           if (!safeMirrors.length) return u.href;
 
           const mirror = randomItem(safeMirrors);
@@ -117,20 +102,26 @@
           u.hostname = mirror;
           u.protocol = "https:";
           return u.href;
-        } catch {
-          return location.origin + location.pathname; // fallback safe URL
-        }
+        } catch { return location.origin + location.pathname; }
       };
 
-      // Detect Tor/I2P environment
       const isTorOrI2P = () => /TorBrowser|I2P/.test(navigator.userAgent || "");
+
+      /** ===================== SAFE NAVIGATION ===================== */
+      const safeNavigate = url => {
+        try {
+          const u = new URL(url, location.origin);
+          if (!["https:"].includes(u.protocol)) return;
+          if (!MAP[u.hostname]) return; // whitelist enforcement
+          location.assign(u.href);
+        } catch {}
+      };
 
       /** ===================== LINK INTERCEPTION ===================== */
       const interceptClick = async e => {
         try {
           const a = e.target.closest("a[href]");
           if (!a) return;
-
           const raw = a.getAttribute("href");
           if (!raw || /^#|^javascript:|^data:/i.test(raw)) return;
 
@@ -138,14 +129,13 @@
           e.stopImmediatePropagation();
 
           let target = await rewriteURL(raw);
-
           if (isTorOrI2P()) {
-            const urlObj = new URL(target, location.origin);
-            urlObj.protocol = "https:";
-            target = urlObj.href;
+            const u = new URL(target, location.origin);
+            u.protocol = "https:";
+            target = u.href;
           }
 
-          location.assign(target);
+          safeNavigate(target);
         } catch (err) {
           if (this.config.DEBUG) console.warn("[KrySearch] Link interception failed", err);
         }
@@ -159,16 +149,23 @@
           const params = new URLSearchParams(location.search);
           if (!params.has("url")) return;
 
-          let target = await rewriteURL(decodeURIComponent(params.get("url")));
+          const raw = params.get("url");
+          if (!raw) return;
 
+          let urlObj;
+          try { urlObj = new URL(raw, location.origin); } catch { return; }
+
+          if (!MAP[urlObj.hostname]) return;
+
+          let target = await rewriteURL(urlObj.href);
           if (isTorOrI2P()) {
-            const urlObj = new URL(target, location.origin);
-            urlObj.protocol = "https:";
-            target = urlObj.href;
+            const u = new URL(target, location.origin);
+            u.protocol = "https:";
+            target = u.href;
           }
 
           history.replaceState({}, "", location.pathname);
-          location.replace(target);
+          safeNavigate(target);
         } catch (err) {
           if (this.config.DEBUG) console.warn("[KrySearch] URL param handling failed", err);
         }
@@ -181,10 +178,7 @@
         if (this.config.DEBUG) console.info("[KrySearch] Self-healing iteration complete");
       };
 
-      // Initial run
       await selfHeal();
-
-      // Periodic refresh
       setInterval(selfHeal, this.config.REFRESH_INTERVAL_MS);
     }
   });
