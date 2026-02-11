@@ -1,4 +1,3 @@
-```
 # 🔍 KrySearch
 
 [![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)  
