@@ -109,10 +109,13 @@
               if (node.tagName === "A" && node.href) node.addEventListener("click", interceptLink, true);
               if (node.tagName === "FORM" && node.action) node.addEventListener("submit", interceptForm, true);
 
-              node.querySelectorAll("a[href], form[action]").forEach(el => {
-                if (el.tagName === "A") el.addEventListener("click", interceptLink, true);
-                if (el.tagName === "FORM") el.addEventListener("submit", interceptForm, true);
-              });
+              // avoid attaching duplicate listeners when node itself is an A or FORM
+              if (node.tagName !== "A" && node.tagName !== "FORM") {
+                node.querySelectorAll("a[href], form[action]").forEach(el => {
+                  if (el.tagName === "A") el.addEventListener("click", interceptLink, true);
+                  if (el.tagName === "FORM") el.addEventListener("submit", interceptForm, true);
+                });
+              }
             }
           }
         });
