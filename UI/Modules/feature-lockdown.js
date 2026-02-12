@@ -35,40 +35,9 @@
           document.addEventListener(evt, blockEvent, { capture: true });
         });
 
-        /** ================= MUTATION OBSERVER ================= */
-        const observer = new MutationObserver(mutations => {
-          mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-              if (!(node instanceof Element)) return;
-              // Prevent attaching duplicate listeners to the same node
-              if (node.__kryFeatureLockdownMaxInitialized) return;
-              Object.defineProperty(node, "__kryFeatureLockdownMaxInitialized", {
-                value: true,
-                writable: false,
-                configurable: false,
-                enumerable: false
-              });
-              blockedEvents.forEach(evt => {
-                node.addEventListener(evt, blockEvent, { capture: true });
-              });
-            });
-          });
-        });
-
-        /** Observe entire document for new nodes */
-        observer.observe(document.documentElement, {
-          childList: true,
-          subtree: true
-        });
-
-        /** Disconnect observer when the page is unloading to avoid leaks */
-        window.addEventListener("beforeunload", function () {
-          try {
-            observer.disconnect();
-          } catch (e) {
-            // Ignore errors during unload
-          }
-        });
+        // MutationObserver previously used to attach per-node listeners has been
+        // removed as redundant, since document-level capturing listeners already
+        // intercept the relevant events across the entire DOM.
 
       } catch (err) {
         // Fail silently but log if debugging needed
