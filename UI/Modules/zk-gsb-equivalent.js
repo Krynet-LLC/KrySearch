@@ -5,6 +5,8 @@
 (() => {
   "use strict";
 
+  /* ===================== IMMUTABLE STATE ===================== */
+
   const feeds = Object.freeze({
     openPhish: new Set(),
     spamhaus: new Set(),
@@ -16,8 +18,12 @@
     output: null
   });
 
+  /* ===================== PATHS ===================== */
+
   const FEED_BASE = "/KrySearch/UI/Modules/Feeds/";
   const MANIFEST  = FEED_BASE + "feeds.json";
+
+  /* ===================== FEED LOADER ===================== */
 
   async function loadFeedsOnce() {
     if (state.loaded) return;
@@ -28,46 +34,56 @@
       const res = await fetch(MANIFEST, { cache: "no-store" });
       if (!res.ok) return;
       list = await res.json();
+      if (!Array.isArray(list)) return;
     } catch {
       return;
     }
 
     await Promise.all(
-      list.map(async name => {
+      list.map(async file => {
         try {
-          const res = await fetch(FEED_BASE + name, { cache: "no-store" });
+          const res = await fetch(FEED_BASE + file, { cache: "no-store" });
           if (!res.ok) return;
 
-          const set =
-            name.includes("open") ? feeds.openPhish :
-            name.includes("drop") ? feeds.spamhaus :
-            feeds.malwareHosts;
-
           const text = await res.text();
+
+          const target =
+            file.includes("open")   ? feeds.openPhish :
+            file.includes("spam") ||
+            file.includes("drop")   ? feeds.spamhaus :
+                                      feeds.malwareHosts;
+
           for (const line of text.split("\n")) {
             const v = line.trim().split(/[ ;]/)[0];
-            if (v && v[0] !== "#") set.add(v);
+            if (v && v[0] !== "#") target.add(v);
           }
         } catch {}
       })
     );
   }
 
-  function domain(input) {
+  /* ===================== UTIL ===================== */
+
+  function extractDomain(input) {
     try { return new URL(input).hostname; }
     catch { return input; }
   }
 
+  /* ===================== PLUGIN ===================== */
+
   const plugin = {
     id: "zk-gsb-equivalent",
+    description: "Manifest-driven feed scanner (GH Pages safe)",
+
     run: async ctx => {
       await loadFeedsOnce();
 
-      const q = new URLSearchParams(location.search);
-      const input = (q.get("url") || q.get("q") || "").trim();
+      const qs = new URLSearchParams(location.search);
+      const input = (qs.get("url") || qs.get("q") || "").trim();
       if (!input) return;
 
-      const d = domain(input);
+      const d = extractDomain(input);
+
       state.output = {
         input,
         domain: d,
@@ -78,7 +94,7 @@
         }
       };
 
-      if (ctx && typeof ctx === "object") {
+      if (ctx && typeof ctx === "object" && !("safeFeeds" in ctx)) {
         Object.defineProperty(ctx, "safeFeeds", {
           value: state,
           configurable: false
