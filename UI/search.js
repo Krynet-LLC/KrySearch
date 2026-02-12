@@ -1,72 +1,71 @@
+"use strict";
+
 (async () => {
-  "use strict";
+  const CONFIG_PATH = "./Config/config.json";
 
-  const CONFIG_PATH = "../config.json";
-
-  const params = new URLSearchParams(window.location.search);
-  const query = params.get("q");
+  const params = new URLSearchParams(location.search);
+  const q = params.get("q");
   const rawUrl = params.get("url");
   const forcedEngine = params.get("engine");
 
-  // 🚫 No params → do absolutely nothing
-  if (!query && !rawUrl) return;
+  // 🚫 No params → do nothing
+  if (!q && !rawUrl) return;
 
-  let config;
+  let CONFIG;
   try {
     const res = await fetch(CONFIG_PATH, { cache: "no-store" });
-    config = await res.json();
-  } catch {
-    document.body.textContent = "Failed to load config.json";
+    if (!res.ok) throw new Error(res.status);
+    CONFIG = await res.json();
+  } catch (e) {
+    console.error("[KrySearch] Config load failed", e);
     return;
   }
 
   const engines = {
-    ...config.engines.open_source,
-    ...config.engines.closed_source
+    ...CONFIG.engines.open_source,
+    ...CONFIG.engines.closed_source
   };
 
   const engineKey =
     forcedEngine && engines[forcedEngine]
       ? forcedEngine
-      : config.search.defaultEngine;
+      : CONFIG.search.defaultEngine;
 
   const engine = engines[engineKey];
-  if (!engine || !engine.url) {
-    document.body.textContent = "Invalid engine";
-    return;
-  }
+  if (!engine?.url) return;
 
-  let destination;
+  let target;
 
-  // -----------------------
-  // URL MODE (ENGINE-FORCED)
-  // -----------------------
+  /* =========================
+     DIRECT URL MODE
+  ========================= */
   if (rawUrl) {
-    let cleanUrl;
+    let clean;
     try {
-      cleanUrl = new URL(rawUrl).toString();
+      clean = new URL(
+        rawUrl.startsWith("http") ? rawUrl : "https://" + rawUrl
+      ).href;
     } catch {
-      document.body.textContent = "Invalid URL";
       return;
     }
 
-    destination = engine.url.replace(
+    target = engine.url.replace(
       "{query}",
-      encodeURIComponent(cleanUrl)
+      encodeURIComponent(clean)
     );
   }
 
-  // -----------------------
-  // QUERY MODE
-  // -----------------------
-  else if (query) {
-    destination = engine.url.replace(
+  /* =========================
+     SEARCH QUERY MODE
+  ========================= */
+  if (q) {
+    target = engine.url.replace(
       "{query}",
-      encodeURIComponent(query)
+      encodeURIComponent(q)
     );
   }
 
-  if (!destination) return;
+  if (!target) return;
 
-  window.location.replace(destination);
+  location.replace(target);
 })();
