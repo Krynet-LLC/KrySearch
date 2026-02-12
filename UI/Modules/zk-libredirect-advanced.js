@@ -168,7 +168,7 @@
           let urlObj;
           try { urlObj = new URL(raw, location.origin); } catch { return; }
 
-          if (!MAP[urlObj.hostname]) return;
+          if (!redirectMap[urlObj.hostname]) return;
 
           let target = await rewriteURL(urlObj.href);
           if (isTorOrI2P()) {
