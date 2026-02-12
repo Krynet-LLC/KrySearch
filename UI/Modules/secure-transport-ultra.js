@@ -47,6 +47,10 @@ window.KRY_PLUGINS.push({
         return dec.decode(out);
       }
 
+      function delay(ms = 0) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
       /** STRICT SANITIZATION: only https + engine param */
       function sanitizeURL(raw) {
         try {
