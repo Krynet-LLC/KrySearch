@@ -37,7 +37,7 @@
       const loadConfig = async () => {
         try {
           const res = await fetch(this.config.CONFIG_URL, {
-            cache: "force-cache",
+            cache: "reload",
             credentials: "omit",
             referrerPolicy: "no-referrer"
           });
