@@ -5,7 +5,9 @@
 (() => {
   "use strict";
 
-  /* ===================== HARD FACT STATE ===================== */
+  console.warn("✅ zk-gsb-equivalent ACTIVE");
+
+  /* ===================== STATE ===================== */
 
   const openPhish = new Set();
   const spamhaus = new Set();
@@ -16,10 +18,11 @@
     output: null
   });
 
-  /* ===================== PATH (SCRIPT-RELATIVE, UNBREAKABLE) ===================== */
+  /* ===================== PATH (CORRECT) ===================== */
 
   const SCRIPT_URL = new URL(document.currentScript.src);
-  const FEED_BASE  = new URL("../Feeds/", SCRIPT_URL).href;
+  const FEED_BASE  = new URL("./Feeds/", SCRIPT_URL).href;
+  // → /KrySearch/UI/Modules/Feeds/
 
   /* ===================== FEED LOADER ===================== */
 
@@ -28,19 +31,18 @@
     state.loaded = true;
 
     const FEEDS = [
-      { file: "openphish.txt",      target: openPhish },
-      { file: "spamhaus_drop.txt",  target: spamhaus },
-      { file: "urlhaus.txt",        target: malwareHosts }
+      { file: "openphish.txt",     target: openPhish },
+      { file: "spamhaus_drop.txt", target: spamhaus },
+      { file: "urlhaus.txt",       target: malwareHosts }
     ];
 
     await Promise.all(
       FEEDS.map(async ({ file, target }) => {
         const url = FEED_BASE + file;
-
         try {
           const res = await fetch(url, { cache: "no-store" });
           if (!res.ok) {
-            console.error("[zk-gsb] Missing feed:", url);
+            console.error("[zk-gsb] 404:", url);
             return;
           }
 
@@ -50,13 +52,13 @@
             if (v && !v.startsWith("#")) target.add(v);
           }
         } catch (err) {
-          console.error("[zk-gsb] Feed load failed:", file, err);
+          console.error("[zk-gsb] fetch failed:", url, err);
         }
       })
     );
   }
 
-  /* ===================== DOMAIN EXTRACTION ===================== */
+  /* ===================== UTIL ===================== */
 
   function extractDomain(input) {
     try { return new URL(input).hostname; }
@@ -67,7 +69,7 @@
 
   const plugin = {
     id: "zk-gsb-equivalent",
-    description: "Exact-filename feed scanner (no inference, GH Pages safe)",
+    description: "Exact-path feed scanner (path-correct, GH Pages safe)",
 
     run: async ctx => {
       await loadFeedsOnce();
@@ -91,14 +93,11 @@
       if (ctx && typeof ctx === "object" && !("safeFeeds" in ctx)) {
         Object.defineProperty(ctx, "safeFeeds", {
           value: state,
-          writable: false,
           configurable: false
         });
       }
     }
   };
-
-  /* ===================== REGISTER ===================== */
 
   globalThis.KRY_PLUGINS ??= [];
   globalThis.KRY_PLUGINS.push(plugin);
