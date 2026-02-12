@@ -23,17 +23,6 @@ window.KRY_PLUGINS.push({
         crypto.subtle &&
         typeof crypto.subtle.encrypt === "function";
 
-      const randomDelay = (min = 25, max = 140) =>
-        new Promise(r =>
-          setTimeout(
-            r,
-            min +
-              (hasCrypto
-                ? (crypto.getRandomValues(new Uint8Array(1))[0] / 255) * (max - min)
-                : Math.random() * (max - min))
-          )
-        );
-
       const sessionKeyPromise = hasCrypto
         ? crypto.subtle.generateKey(
             { name: "AES-GCM", length: 256 },
