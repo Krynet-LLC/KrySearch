@@ -21,7 +21,7 @@
          * @param {Event} e
          */
         const blockEvent = e => {
-             try {
+          try {
             e.preventDefault();
           } catch (err) {
             // Keep handler resilient; log only when debugging is enabled
