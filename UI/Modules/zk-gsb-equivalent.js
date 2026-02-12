@@ -13,19 +13,26 @@
   const spamhaus = new Set();
   const malwareHosts = new Set();
 
-  // Single authoritative state object
   const state = {
-    feeds: {
-      openPhish,
-      spamhaus,
-      malwareHosts
-    },
+    feeds: { openPhish, spamhaus, malwareHosts },
     output: null,
     loaded: false
   };
 
   Object.seal(state);
   Object.seal(state.feeds);
+
+  /* ===================== PATH RESOLUTION ===================== */
+
+  // Canonical KrySearch root (prevents UI/UI duplication)
+  const BASE =
+    location.origin +
+    location.pathname.split("/UI/")[0] +
+    "/UI/Modules/Feeds/";
+
+  function feedPath(name) {
+    return BASE + name;
+  }
 
   /* ===================== FEED LOADER ===================== */
 
@@ -34,9 +41,9 @@
     state.loaded = true;
 
     const feeds = [
-      { url: "UI/Modules/Feeds/openPhish.txt", target: openPhish },
-      { url: "UI/Modules/Feeds/drop.txt",     target: spamhaus },
-      { url: "UI/Modules/Feeds/urlhaus.txt",  target: malwareHosts }
+      { url: feedPath("openPhish.txt"), target: openPhish },
+      { url: feedPath("drop.txt"),     target: spamhaus },
+      { url: feedPath("urlhaus.txt"),  target: malwareHosts }
     ];
 
     await Promise.all(
@@ -47,10 +54,8 @@
 
           const text = await res.text();
           for (const line of text.split("\n")) {
-            const value = line.trim().split(/[ ;]/)[0];
-            if (value && value[0] !== "#") {
-              target.add(value);
-            }
+            const v = line.trim().split(/[ ;]/)[0];
+            if (v && v[0] !== "#") target.add(v);
           }
         } catch {
           /* silent by design */
@@ -72,7 +77,6 @@
   /* ===================== CONTEXT ATTACHMENT ===================== */
 
   function attachState(ctx) {
-    // Prefer ctx if usable
     if (ctx && typeof ctx === "object") {
       try {
         if (!("safeFeeds" in ctx)) {
@@ -84,12 +88,9 @@
           });
         }
         return;
-      } catch {
-        /* ctx is frozen or hostile */
-      }
+      } catch {}
     }
 
-    // Fallback: controlled global exposure
     if (!globalThis.KRY_SAFE_FEEDS) {
       Object.defineProperty(globalThis, "KRY_SAFE_FEEDS", {
         value: state,
@@ -104,7 +105,7 @@
 
   const plugin = {
     id: "zk-gsb-equivalent",
-    description: "Feed-aware URL scanner (runner-agnostic, CSP-safe)",
+    description: "Feed-aware URL scanner (path-safe, runner-agnostic)",
 
     run: async function (ctx) {
       try {
