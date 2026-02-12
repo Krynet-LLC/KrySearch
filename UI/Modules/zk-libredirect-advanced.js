@@ -80,10 +80,23 @@
 
       const validateMirror = async host => {
         if (!host) return false;
+        const TIMEOUT_MS = 3000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, TIMEOUT_MS);
         try {
-          await fetch(`https://${host}/`, { method: "HEAD", mode: "no-cors" });
+          await fetch(`https://${host}/`, {
+            method: "HEAD",
+            mode: "no-cors",
+            signal: controller.signal
+          });
           return true;
-        } catch { return false; }
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timeoutId);
+        }
       };
 
       const rewriteURL = async raw => {
