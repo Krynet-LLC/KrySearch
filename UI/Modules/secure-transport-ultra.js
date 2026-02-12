@@ -23,7 +23,7 @@ window.KRY_PLUGINS.push({
         crypto.subtle &&
         typeof crypto.subtle.encrypt === "function";
 
-      const delay = (min = 25, max = 140) =>
+      const randomDelay = (min = 25, max = 140) =>
         new Promise(r =>
           setTimeout(
             r,
