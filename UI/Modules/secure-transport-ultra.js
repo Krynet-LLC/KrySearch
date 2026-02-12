@@ -68,7 +68,9 @@ window.KRY_PLUGINS.push({
           await delay();
           const finalURL = await unseal(sealed);
           location.assign(finalURL);
-        } catch {
+        } catch (err) {
+          // If encryption/decryption fails, fall back to direct (sanitized) navigation.
+          console.warn("Secure Transport Ultra: encryption failed, falling back to plain navigation.", err);
           location.assign(safe);
         }
       }
