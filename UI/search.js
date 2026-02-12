@@ -63,6 +63,9 @@ function sanitizeEngineUrl(url) {
 // Navigate safely
 function navigateSafe(url) {
   if (!url) return;
+  // Internal override hook for navigation; if provided, it must be a function.
+  // External integrations may set window.__KRY_HARD_NAV__, but it is not a
+  // stable public API and is intended for internal/advanced use only.
   if (typeof window.__KRY_HARD_NAV__ === 'function') {
     window.__KRY_HARD_NAV__(url);
   } else {
