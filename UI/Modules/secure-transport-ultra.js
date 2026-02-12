@@ -121,7 +121,9 @@ window.KRY_PLUGINS.push({
             if (n.querySelectorAll) {
               try {
                 n.querySelectorAll("a[href], form[action]").forEach(interceptElement);
-              } catch {}
+              } catch (err) {
+                console.error("[KrySearch][secure-transport-ultra] Failed to intercept dynamic links/forms:", err);
+              }
             }
           }
         }
