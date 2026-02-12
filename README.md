@@ -2,7 +2,7 @@
 
 [![LibreJS Compatible](https://img.shields.io/badge/LibreJS-OK-success?style=flat)](https://www.gnu.org/software/librejs/)  
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
-[![GitHub stars](https://img.shields.io/github/stars/Bloodware-Inc/KrySearch?style=social)](https://github.com/Bloodware-Inc/KrySearch/stargazers)  
+[![GitHub stars](https://img.shields.io/github/stars/Krynet-LLC/KrySearch?style=social)](https://github.com/Krynet-LLC/KrySearch/stargazers)  
 
 **KrySearch** is a **privacy-first, open-source search router** by **Krynet, LLC**.  
 Route your searches through multiple engines **without logging or storing personal data**, fully **GPL 3.0 licensed**.  
@@ -54,7 +54,7 @@ Search privately, avoid ads, and choose engines for ultimate online privacy cont
 
 ```bash
 # Clone repository
-git clone https://github.com/Bloodware-Inc/KrySearch.git
+git clone https://github.com/Krynet-LLC/KrySearch.git
 
 # Enter project folder
 cd KrySearch
@@ -89,8 +89,8 @@ cd KrySearch
 **Example URLs:**
 
 ```
-https://yourdomain.com/?q=privacy
-https://yourdomain.com/?url=https://example.com
+https://example.com/?q=privacy
+https://example.com/?url=https://example.com
 ```
 
 ---
@@ -114,7 +114,7 @@ We welcome contributions!
 1. Fork the repo  
 2. Clone your fork:  
 ```bash
-git clone https://github.com/YOUR_USERNAME/KrySearch.git
+git clone https://github.com/Name/KrySearch.git
 ```
 3. Create a branch:  
 ```bash
