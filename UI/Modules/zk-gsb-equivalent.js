@@ -5,23 +5,21 @@
 (() => {
   "use strict";
 
-  /* ===================== IMMUTABLE STATE ===================== */
+  /* ===================== HARD FACT STATE ===================== */
 
-  const feeds = Object.freeze({
-    openPhish: new Set(),
-    spamhaus: new Set(),
-    malwareHosts: new Set()
-  });
+  const openPhish = new Set();
+  const spamhaus = new Set();
+  const malwareHosts = new Set();
 
   const state = Object.seal({
     loaded: false,
     output: null
   });
 
-  /* ===================== PATHS ===================== */
+  /* ===================== PATH (SCRIPT-RELATIVE, UNBREAKABLE) ===================== */
 
-  const FEED_BASE = "/KrySearch/UI/Modules/Feeds/";
-  const MANIFEST  = FEED_BASE + "feeds.json";
+  const SCRIPT_URL = new URL(document.currentScript.src);
+  const FEED_BASE  = new URL("../Feeds/", SCRIPT_URL).href;
 
   /* ===================== FEED LOADER ===================== */
 
@@ -29,40 +27,36 @@
     if (state.loaded) return;
     state.loaded = true;
 
-    let list;
-    try {
-      const res = await fetch(MANIFEST, { cache: "no-store" });
-      if (!res.ok) return;
-      list = await res.json();
-      if (!Array.isArray(list)) return;
-    } catch {
-      return;
-    }
+    const FEEDS = [
+      { file: "openphish.txt",      target: openPhish },
+      { file: "spamhaus_drop.txt",  target: spamhaus },
+      { file: "urlhaus.txt",        target: malwareHosts }
+    ];
 
     await Promise.all(
-      list.map(async file => {
+      FEEDS.map(async ({ file, target }) => {
+        const url = FEED_BASE + file;
+
         try {
-          const res = await fetch(FEED_BASE + file, { cache: "no-store" });
-          if (!res.ok) return;
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) {
+            console.error("[zk-gsb] Missing feed:", url);
+            return;
+          }
 
           const text = await res.text();
-
-          const target =
-            file.includes("open")   ? feeds.openPhish :
-            file.includes("spam") ||
-            file.includes("drop")   ? feeds.spamhaus :
-                                      feeds.malwareHosts;
-
           for (const line of text.split("\n")) {
             const v = line.trim().split(/[ ;]/)[0];
-            if (v && v[0] !== "#") target.add(v);
+            if (v && !v.startsWith("#")) target.add(v);
           }
-        } catch {}
+        } catch (err) {
+          console.error("[zk-gsb] Feed load failed:", file, err);
+        }
       })
     );
   }
 
-  /* ===================== UTIL ===================== */
+  /* ===================== DOMAIN EXTRACTION ===================== */
 
   function extractDomain(input) {
     try { return new URL(input).hostname; }
@@ -73,7 +67,7 @@
 
   const plugin = {
     id: "zk-gsb-equivalent",
-    description: "Manifest-driven feed scanner (GH Pages safe)",
+    description: "Exact-filename feed scanner (no inference, GH Pages safe)",
 
     run: async ctx => {
       await loadFeedsOnce();
@@ -82,26 +76,29 @@
       const input = (qs.get("url") || qs.get("q") || "").trim();
       if (!input) return;
 
-      const d = extractDomain(input);
+      const domain = extractDomain(input);
 
       state.output = {
         input,
-        domain: d,
+        domain,
         flagged: {
-          openPhish: feeds.openPhish.has(d),
-          spamhaus: feeds.spamhaus.has(d),
-          malwareHosts: feeds.malwareHosts.has(d)
+          openPhish: openPhish.has(domain),
+          spamhaus: spamhaus.has(domain),
+          malwareHosts: malwareHosts.has(domain)
         }
       };
 
       if (ctx && typeof ctx === "object" && !("safeFeeds" in ctx)) {
         Object.defineProperty(ctx, "safeFeeds", {
           value: state,
+          writable: false,
           configurable: false
         });
       }
     }
   };
+
+  /* ===================== REGISTER ===================== */
 
   globalThis.KRY_PLUGINS ??= [];
   globalThis.KRY_PLUGINS.push(plugin);
