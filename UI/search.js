@@ -7,25 +7,23 @@
 let CONFIG = null;
 
 /* =========================
-   CONFIG LOADING
+   CONFIG
 ========================= */
 async function loadConfig() {
   try {
     const res = await fetch('Config/config.json', { cache: 'no-store' });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     CONFIG = Object.freeze(await res.json());
   } catch (err) {
-    console.error('[KrySearch] Failed to load config.json:', err);
+    console.error('[KrySearch] Config load failed:', err);
     CONFIG = null;
   }
 }
 
 /* =========================
-   PLUGIN RUNNER
+   PLUGINS
 ========================= */
-function runPlugins(context) {
+function runPlugins(ctx) {
   if (!Array.isArray(window.KRY_PLUGINS)) return;
 
   window.KRY_PLUGINS
@@ -33,56 +31,27 @@ function runPlugins(context) {
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .forEach(p => {
       try {
-        if (typeof p?.run === 'function') {
-          p.run(context);
-        }
-      } catch (err) {
-        console.error('[KrySearch] Plugin error:', err);
+        if (typeof p?.run === 'function') p.run(ctx);
+      } catch (e) {
+        console.error('[KrySearch] Plugin error:', e);
       }
     });
 }
 
 /* =========================
-   ENGINE DROPDOWN
+   HELPERS
 ========================= */
-function populateEngineDropdown() {
-  if (!CONFIG) return;
-
-  const select = document.getElementById('engine');
-  if (!select) return;
-
-  select.textContent = '';
-
-  const engines = {
+function getAllEngines() {
+  return {
     ...CONFIG.engines.open_source,
     ...CONFIG.engines.closed_source
   };
-
-  for (const [key, eng] of Object.entries(engines)) {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = eng.name;
-    select.appendChild(opt);
-  }
-
-  const params = new URLSearchParams(location.search);
-  const chosen =
-    params.get('engine') ||
-    CONFIG.search.defaultEngine;
-
-  if (chosen in engines) {
-    select.value = chosen;
-  }
 }
 
-/* =========================
-   SECURITY HELPERS
-========================= */
 function sanitizeHttpsUrl(url) {
   try {
     const u = new URL(url, location.origin);
-    if (u.protocol !== 'https:') return null;
-    return u.href;
+    return u.protocol === 'https:' ? u.href : null;
   } catch {
     return null;
   }
@@ -90,7 +59,6 @@ function sanitizeHttpsUrl(url) {
 
 function navigateSafe(url) {
   if (!url) return;
-
   if (typeof window.__KRY_HARD_NAV__ === 'function') {
     window.__KRY_HARD_NAV__(url);
   } else {
@@ -99,118 +67,127 @@ function navigateSafe(url) {
 }
 
 /* =========================
-   SEARCH HANDLER (UI ONLY)
+   UI
 ========================= */
-function handleInput(query) {
-  if (!CONFIG || !query) return;
+function populateEngineDropdown(activeEngine) {
+  const select = document.getElementById('engine');
+  if (!select || !CONFIG) return;
 
-  const engines = {
-    ...CONFIG.engines.open_source,
-    ...CONFIG.engines.closed_source
-  };
+  select.textContent = '';
 
-  const engineKey =
-    document.getElementById('engine')?.value ||
-    CONFIG.search.defaultEngine;
+  const engines = getAllEngines();
+  for (const [key, eng] of Object.entries(engines)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = eng.name;
+    select.appendChild(opt);
+  }
 
-  const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
-  if (!engine?.url) return;
-
-  const q = encodeURIComponent(query.trim());
-
-  const targetUrl = sanitizeHttpsUrl(
-    engine.url.includes('{query}')
-      ? engine.url.replace('{query}', q)
-      : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q
-  );
-
-  if (targetUrl) navigateSafe(targetUrl);
+  select.value = activeEngine;
 }
 
-/* =========================
-   DARK MODE
-========================= */
 function forceDarkMode() {
   document.documentElement.classList.add('dark-mode');
   document.body.style.background =
     CONFIG?.appearance?.colors?.secondary || '#1f1f1f';
-  document.body.style.color = '#ffffff';
+  document.body.style.color = '#fff';
+}
+
+/* =========================
+   SEARCH ROUTER
+========================= */
+function buildSearchUrl(query, engineKey) {
+  const engines = getAllEngines();
+  const engine = engines[engineKey];
+  if (!engine?.url) return null;
+
+  const q = encodeURIComponent(query.trim());
+  const url = engine.url.includes('{query}')
+    ? engine.url.replace('{query}', q)
+    : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q;
+
+  return sanitizeHttpsUrl(url);
 }
 
 /* =========================
    BOOTSTRAP
 ========================= */
 document.addEventListener('DOMContentLoaded', async () => {
-  const KRY_CONTEXT = Object.freeze({
+  await loadConfig();
+  if (!CONFIG) return;
+
+  forceDarkMode();
+
+  const ctx = Object.freeze({
     ua: navigator.userAgent,
     lang: navigator.language,
     platform: navigator.platform,
     url: location.href
   });
 
-  await loadConfig();
-  forceDarkMode();
-  populateEngineDropdown();
-  runPlugins(KRY_CONTEXT);
+  runPlugins(ctx);
 
-  const status = document.getElementById('status');
-  if (status) status.textContent = 'Private search mode';
-
-  const input = document.getElementById('q');
-  const goBtn = document.getElementById('go');
   const params = new URLSearchParams(location.search);
+  const engines = getAllEngines();
+  const defaultEngine = CONFIG.search.defaultEngine;
 
   /* =========================
-     STRICT URL ROUTING
+     DIRECT MODE — ?url=
   ========================= */
-
-  // ✅ DIRECT MODE — ONLY ?url=
   const rawUrl = params.get('url');
   if (rawUrl) {
-    const candidate = sanitizeHttpsUrl(rawUrl.startsWith('http')
-      ? rawUrl
-      : `https://${rawUrl}`);
-
+    const candidate = sanitizeHttpsUrl(
+      rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+    );
     if (candidate) navigateSafe(candidate);
     return;
   }
 
-  // ✅ SEARCH MODE — ONLY ?q=
-  const rawQuery = params.get('q');
-  if (rawQuery && input && CONFIG) {
-    input.value = rawQuery;
+  /* =========================
+     ENGINE RESOLUTION
+  ========================= */
+  let engine =
+    params.get('engine') && engines[params.get('engine')]
+      ? params.get('engine')
+      : defaultEngine;
 
-    const engines = {
-      ...CONFIG.engines.open_source,
-      ...CONFIG.engines.closed_source
-    };
-
-    const engineKey =
-      params.get('engine') ||
-      CONFIG.search.defaultEngine;
-
-    const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
-    if (!engine?.url) return;
-
-    const q = encodeURIComponent(rawQuery.trim());
-
-    const targetUrl = sanitizeHttpsUrl(
-      engine.url.includes('{query}')
-        ? engine.url.replace('{query}', q)
-        : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q
+  /* If engine missing → canonicalize URL */
+  if (!params.get('engine')) {
+    params.set('engine', engine);
+    history.replaceState(
+      null,
+      '',
+      `${location.pathname}?${params.toString()}`
     );
+  }
 
-    if (targetUrl) navigateSafe(targetUrl);
+  populateEngineDropdown(engine);
+
+  /* =========================
+     SEARCH MODE — ?q=
+  ========================= */
+  const rawQuery = params.get('q');
+  if (rawQuery) {
+    const target = buildSearchUrl(rawQuery, engine);
+    if (target) navigateSafe(target);
     return;
   }
 
   /* =========================
      UI EVENTS
   ========================= */
-  if (goBtn && input) {
+  const input = document.getElementById('q');
+  const goBtn = document.getElementById('go');
+  const select = document.getElementById('engine');
+
+  if (goBtn && input && select) {
     goBtn.addEventListener('click', () => {
-      if (!input.value.trim()) return;
-      handleInput(input.value);
+      const q = input.value.trim();
+      if (!q) return;
+
+      const selectedEngine = select.value || defaultEngine;
+      const target = buildSearchUrl(q, selectedEngine);
+      if (target) navigateSafe(target);
     });
   }
 });
