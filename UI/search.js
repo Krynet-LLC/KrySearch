@@ -53,7 +53,7 @@ function populateEngineDropdown() {
 function sanitizeEngineUrl(url) {
   try {
     const u = new URL(url, location.origin);
-    if (!/^https:\/\//i.test(u.href)) return null; // force HTTPS
+    if (u.protocol !== 'https:') return null; // force HTTPS
     return u.href;
   } catch {
     return null;
@@ -83,8 +83,30 @@ function handleInput(query, directUrl) {
   let targetUrl = '';
 
   if (directUrl) {
-    const prefixed = directUrl.startsWith('http://') || directUrl.startsWith('https://') ? directUrl : 'https://' + directUrl;
-    targetUrl = sanitizeEngineUrl(prefixed);
+    const raw = directUrl.trim();
+    let candidateUrl = null;
+
+    try {
+      // Try to parse as-is. If it already has a scheme, rely on sanitizeEngineUrl
+      // to enforce HTTPS and overall URL validity.
+      const parsed = new URL(raw, location.origin);
+      candidateUrl = parsed.href;
+    } catch {
+      // If parsing fails, treat it as a bare hostname/path and construct
+      // an HTTPS URL explicitly.
+      try {
+        const httpsUrl = new URL('https://' + raw);
+        candidateUrl = httpsUrl.href;
+      } catch {
+        candidateUrl = null;
+      }
+    }
+
+    if (candidateUrl) {
+      targetUrl = sanitizeEngineUrl(candidateUrl);
+    } else {
+      targetUrl = null;
+    }
   } else if (query) {
     const q = encodeURIComponent(query.trim());
     switch (engine.mode) {
@@ -118,7 +140,7 @@ function forceDarkMode() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  window.KRY_CONTEXT = Object.freeze({
+  const KRY_CONTEXT = Object.freeze({
     ua: navigator.userAgent,
     lang: navigator.language,
     platform: navigator.platform,
@@ -127,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   forceDarkMode();
   await loadConfig();
-  runPlugins();
+  runPlugins(KRY_CONTEXT);
   populateEngineDropdown();
 
   const status = document.getElementById('status');
