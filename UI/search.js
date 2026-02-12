@@ -118,7 +118,7 @@ function forceDarkMode() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  window.KRY_CONTEXT = Object.freeze({
+  const KRY_CONTEXT = Object.freeze({
     ua: navigator.userAgent,
     lang: navigator.language,
     platform: navigator.platform,
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   forceDarkMode();
   await loadConfig();
-  runPlugins();
+  runPlugins(KRY_CONTEXT);
   populateEngineDropdown();
 
   const status = document.getElementById('status');
