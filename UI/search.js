@@ -6,66 +6,91 @@
 
 let CONFIG = null;
 
-// Load config.json
+/* =========================
+   CONFIG LOADING
+========================= */
 async function loadConfig() {
   try {
     const res = await fetch('Config/config.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Failed to load config.json: HTTP ${res.status} ${res.statusText || ''}`.trim());
-    CONFIG = await res.json();
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    CONFIG = Object.freeze(await res.json());
   } catch (err) {
     console.error('[KrySearch] Failed to load config.json:', err);
     CONFIG = null;
   }
 }
 
-// Run external plugins
-function runPlugins() {
+/* =========================
+   PLUGIN RUNNER
+========================= */
+function runPlugins(context) {
   if (!Array.isArray(window.KRY_PLUGINS)) return;
-  window.KRY_PLUGINS.slice()
+
+  window.KRY_PLUGINS
+    .slice()
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .forEach(p => {
-      try { typeof p?.run === 'function' && p.run(window.KRY_CONTEXT); }
-      catch (err) { console.error('[KrySearch] Plugin error:', err); }
+      try {
+        if (typeof p?.run === 'function') {
+          p.run(context);
+        }
+      } catch (err) {
+        console.error('[KrySearch] Plugin error:', err);
+      }
     });
 }
 
-// Populate search engine dropdown
+/* =========================
+   ENGINE DROPDOWN
+========================= */
 function populateEngineDropdown() {
   if (!CONFIG) return;
+
   const select = document.getElementById('engine');
   if (!select) return;
 
   select.textContent = '';
-  const engines = { ...CONFIG.engines.open_source, ...CONFIG.engines.closed_source };
-  Object.entries(engines).forEach(([key, eng]) => {
+
+  const engines = {
+    ...CONFIG.engines.open_source,
+    ...CONFIG.engines.closed_source
+  };
+
+  for (const [key, eng] of Object.entries(engines)) {
     const opt = document.createElement('option');
     opt.value = key;
     opt.textContent = eng.name;
     select.appendChild(opt);
-  });
+  }
 
   const params = new URLSearchParams(location.search);
-  const engineParam = params.get('engine') || CONFIG.search.defaultEngine;
-  if (engineParam in engines) select.value = engineParam;
+  const chosen =
+    params.get('engine') ||
+    CONFIG.search.defaultEngine;
+
+  if (chosen in engines) {
+    select.value = chosen;
+  }
 }
 
-// Ensure URL is HTTPS
-function sanitizeEngineUrl(url) {
+/* =========================
+   SECURITY HELPERS
+========================= */
+function sanitizeHttpsUrl(url) {
   try {
     const u = new URL(url, location.origin);
-    if (u.protocol !== 'https:') return null; // force HTTPS
+    if (u.protocol !== 'https:') return null;
     return u.href;
   } catch {
     return null;
   }
 }
 
-// Navigate safely
 function navigateSafe(url) {
   if (!url) return;
-  // Internal override hook for navigation; if provided, it must be a function.
-  // External integrations may set window.__KRY_HARD_NAV__, but it is not a
-  // stable public API and is intended for internal/advanced use only.
+
   if (typeof window.__KRY_HARD_NAV__ === 'function') {
     window.__KRY_HARD_NAV__(url);
   } else {
@@ -73,72 +98,48 @@ function navigateSafe(url) {
   }
 }
 
-// Handle input (search query or direct URL)
-function handleInput(query, directUrl) {
-  if (!CONFIG) return;
-  const engines = { ...CONFIG.engines.open_source, ...CONFIG.engines.closed_source };
-  const engineKey = document.getElementById('engine')?.value || CONFIG.search.defaultEngine;
+/* =========================
+   SEARCH HANDLER (UI ONLY)
+========================= */
+function handleInput(query) {
+  if (!CONFIG || !query) return;
+
+  const engines = {
+    ...CONFIG.engines.open_source,
+    ...CONFIG.engines.closed_source
+  };
+
+  const engineKey =
+    document.getElementById('engine')?.value ||
+    CONFIG.search.defaultEngine;
+
   const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
+  if (!engine?.url) return;
 
-  let targetUrl = '';
+  const q = encodeURIComponent(query.trim());
 
-  if (directUrl) {
-    const raw = directUrl.trim();
-    let candidateUrl = null;
-
-    try {
-      // Try to parse as-is. If it already has a scheme, rely on sanitizeEngineUrl
-      // to enforce HTTPS and overall URL validity.
-      const parsed = new URL(raw, location.origin);
-      candidateUrl = parsed.href;
-    } catch {
-      // If parsing fails, treat it as a bare hostname/path and construct
-      // an HTTPS URL explicitly.
-      try {
-        const httpsUrl = new URL('https://' + raw);
-        candidateUrl = httpsUrl.href;
-      } catch {
-        candidateUrl = null;
-      }
-    }
-
-    if (candidateUrl) {
-      targetUrl = sanitizeEngineUrl(candidateUrl);
-    } else {
-      targetUrl = null;
-    }
-  } else if (query) {
-    const q = encodeURIComponent(query.trim());
-    switch (engine.mode) {
-      case 'direct':
-        targetUrl = engine.base;
-        if (engine.appendInput) {
-          if (!targetUrl.endsWith('/') && !query.startsWith('/')) targetUrl += '/';
-          targetUrl += query;
-        }
-        targetUrl = sanitizeEngineUrl(targetUrl);
-        break;
-      case 'query':
-        if (!engine.url) return;
-        targetUrl = engine.url.includes('{query}') 
-          ? engine.url.replace('{query}', q)
-          : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q;
-        targetUrl = sanitizeEngineUrl(targetUrl);
-        break;
-      default: return;
-    }
-  }
+  const targetUrl = sanitizeHttpsUrl(
+    engine.url.includes('{query}')
+      ? engine.url.replace('{query}', q)
+      : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q
+  );
 
   if (targetUrl) navigateSafe(targetUrl);
 }
 
-// Force dark mode
+/* =========================
+   DARK MODE
+========================= */
 function forceDarkMode() {
   document.documentElement.classList.add('dark-mode');
-  document.body.style.background = CONFIG?.appearance?.colors?.secondary || '#1f1f1f';
-  document.body.style.color = '#fff';
+  document.body.style.background =
+    CONFIG?.appearance?.colors?.secondary || '#1f1f1f';
+  document.body.style.color = '#ffffff';
 }
 
+/* =========================
+   BOOTSTRAP
+========================= */
 document.addEventListener('DOMContentLoaded', async () => {
   const KRY_CONTEXT = Object.freeze({
     ua: navigator.userAgent,
@@ -147,10 +148,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     url: location.href
   });
 
-  forceDarkMode();
   await loadConfig();
-  runPlugins(KRY_CONTEXT);
+  forceDarkMode();
   populateEngineDropdown();
+  runPlugins(KRY_CONTEXT);
 
   const status = document.getElementById('status');
   if (status) status.textContent = 'Private search mode';
@@ -159,25 +160,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   const goBtn = document.getElementById('go');
   const params = new URLSearchParams(location.search);
 
-  // Direct URL navigation
+  /* =========================
+     STRICT URL ROUTING
+  ========================= */
+
+  // ✅ DIRECT MODE — ONLY ?url=
   const rawUrl = params.get('url');
   if (rawUrl) {
-    handleInput(null, rawUrl);
+    const candidate = sanitizeHttpsUrl(rawUrl.startsWith('http')
+      ? rawUrl
+      : `https://${rawUrl}`);
+
+    if (candidate) navigateSafe(candidate);
     return;
   }
 
-  // Search query
+  // ✅ SEARCH MODE — ONLY ?q=
   const rawQuery = params.get('q');
-  if (rawQuery && input) {
+  if (rawQuery && input && CONFIG) {
     input.value = rawQuery;
-    handleInput(rawQuery, null);
+
+    const engines = {
+      ...CONFIG.engines.open_source,
+      ...CONFIG.engines.closed_source
+    };
+
+    const engineKey =
+      params.get('engine') ||
+      CONFIG.search.defaultEngine;
+
+    const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
+    if (!engine?.url) return;
+
+    const q = encodeURIComponent(rawQuery.trim());
+
+    const targetUrl = sanitizeHttpsUrl(
+      engine.url.includes('{query}')
+        ? engine.url.replace('{query}', q)
+        : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q
+    );
+
+    if (targetUrl) navigateSafe(targetUrl);
+    return;
   }
 
-  // Go button click
+  /* =========================
+     UI EVENTS
+  ========================= */
   if (goBtn && input) {
     goBtn.addEventListener('click', () => {
       if (!input.value.trim()) return;
-      handleInput(input.value, null);
+      handleInput(input.value);
     });
   }
 });
