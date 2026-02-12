@@ -10,7 +10,7 @@ let CONFIG = null;
 async function loadConfig() {
   try {
     const res = await fetch('Config/config.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Failed to load config.json: HTTP ${res.status} ${res.statusText || ''}`.trim());
     CONFIG = await res.json();
   } catch (err) {
     console.error('[KrySearch] Failed to load config.json:', err);
