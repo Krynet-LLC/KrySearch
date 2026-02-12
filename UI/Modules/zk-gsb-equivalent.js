@@ -1,147 +1,92 @@
 /* zk-gsb-equivalent – KrySearch Plugin
- * GitHub Pages safe, async, feed-aware
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
- * https://github.com/Bloodware-Inc/KrySearch
  */
 (() => {
   "use strict";
 
-  /* ===================== INTERNAL STATE ===================== */
+  const feeds = Object.freeze({
+    openPhish: new Set(),
+    spamhaus: new Set(),
+    malwareHosts: new Set()
+  });
 
-  const openPhish = new Set();
-  const spamhaus = new Set();
-  const malwareHosts = new Set();
+  const state = Object.seal({
+    loaded: false,
+    output: null
+  });
 
-  const state = {
-    feeds: { openPhish, spamhaus, malwareHosts },
-    output: null,
-    loaded: false
-  };
-
-  Object.seal(state);
-  Object.seal(state.feeds);
-
-  /* ===================== PATH RESOLUTION ===================== */
-
-  // Canonical KrySearch root (prevents UI/UI duplication)
-  const BASE =
-    location.origin +
-    location.pathname.split("/UI/")[0] +
-    "/UI/Modules/Feeds/";
-
-  function feedPath(name) {
-    return BASE + name;
-  }
-
-  /* ===================== FEED LOADER ===================== */
+  const FEED_BASE = "/KrySearch/UI/Modules/Feeds/";
+  const MANIFEST  = FEED_BASE + "feeds.json";
 
   async function loadFeedsOnce() {
     if (state.loaded) return;
     state.loaded = true;
 
-    const feeds = [
-      { url: feedPath("openPhish.txt"), target: openPhish },
-      { url: feedPath("drop.txt"),     target: spamhaus },
-      { url: feedPath("urlhaus.txt"),  target: malwareHosts }
-    ];
+    let list;
+    try {
+      const res = await fetch(MANIFEST, { cache: "no-store" });
+      if (!res.ok) return;
+      list = await res.json();
+    } catch {
+      return;
+    }
 
     await Promise.all(
-      feeds.map(async ({ url, target }) => {
+      list.map(async name => {
         try {
-          const res = await fetch(url, { cache: "no-store" });
+          const res = await fetch(FEED_BASE + name, { cache: "no-store" });
           if (!res.ok) return;
+
+          const set =
+            name.includes("open") ? feeds.openPhish :
+            name.includes("drop") ? feeds.spamhaus :
+            feeds.malwareHosts;
 
           const text = await res.text();
           for (const line of text.split("\n")) {
             const v = line.trim().split(/[ ;]/)[0];
-            if (v && v[0] !== "#") target.add(v);
+            if (v && v[0] !== "#") set.add(v);
           }
-        } catch {
-          /* silent by design */
-        }
+        } catch {}
       })
     );
   }
 
-  /* ===================== DOMAIN EXTRACTION ===================== */
-
-  function extractDomain(input) {
-    try {
-      return new URL(input).hostname;
-    } catch {
-      return input;
-    }
+  function domain(input) {
+    try { return new URL(input).hostname; }
+    catch { return input; }
   }
-
-  /* ===================== CONTEXT ATTACHMENT ===================== */
-
-  function attachState(ctx) {
-    if (ctx && typeof ctx === "object") {
-      try {
-        if (!("safeFeeds" in ctx)) {
-          Object.defineProperty(ctx, "safeFeeds", {
-            value: state,
-            writable: false,
-            configurable: false,
-            enumerable: true
-          });
-        }
-        return;
-      } catch {}
-    }
-
-    if (!globalThis.KRY_SAFE_FEEDS) {
-      Object.defineProperty(globalThis, "KRY_SAFE_FEEDS", {
-        value: state,
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
-    }
-  }
-
-  /* ===================== PLUGIN ===================== */
 
   const plugin = {
     id: "zk-gsb-equivalent",
-    description: "Feed-aware URL scanner (path-safe, runner-agnostic)",
+    run: async ctx => {
+      await loadFeedsOnce();
 
-    run: async function (ctx) {
-      try {
-        attachState(ctx);
-        await loadFeedsOnce();
+      const q = new URLSearchParams(location.search);
+      const input = (q.get("url") || q.get("q") || "").trim();
+      if (!input) return;
 
-        const params = new URLSearchParams(location.search);
-        const input =
-          (params.get("url") || params.get("q") || "").trim();
-
-        if (!input) {
-          state.output = null;
-          return;
+      const d = domain(input);
+      state.output = {
+        input,
+        domain: d,
+        flagged: {
+          openPhish: feeds.openPhish.has(d),
+          spamhaus: feeds.spamhaus.has(d),
+          malwareHosts: feeds.malwareHosts.has(d)
         }
+      };
 
-        const domain = extractDomain(input);
-
-        state.output = {
-          input,
-          domain,
-          flagged: {
-            openPhish: openPhish.has(domain),
-            spamhaus: spamhaus.has(domain),
-            malwareHosts: malwareHosts.has(domain)
-          },
-          note: "Feed scan complete (openPhish, drop/spamhaus, urlhaus)"
-        };
-      } catch {
-        state.output = null;
+      if (ctx && typeof ctx === "object") {
+        Object.defineProperty(ctx, "safeFeeds", {
+          value: state,
+          configurable: false
+        });
       }
     }
   };
 
-  /* ===================== REGISTRATION ===================== */
-
-  globalThis.KRY_PLUGINS = globalThis.KRY_PLUGINS || [];
+  globalThis.KRY_PLUGINS ??= [];
   globalThis.KRY_PLUGINS.push(plugin);
-
 })();
