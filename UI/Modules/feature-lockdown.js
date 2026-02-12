@@ -21,9 +21,15 @@
          * @param {Event} e
          */
         const blockEvent = e => {
-          try { e.preventDefault(); } catch {}
+             try {
+            e.preventDefault();
+          } catch (err) {
+            // Keep handler resilient; log only when debugging is enabled
+            if (window.DEBUG_KRY_PLUGINS) {
+              console.warn("[KrySearch Plugin Warning] preventDefault failed in feature-lockdown-max", err);
+            }
+          }
         };
-
         /** Attach listeners to document and existing elements */
         blockedEvents.forEach(evt => {
           document.addEventListener(evt, blockEvent, { capture: true });
@@ -45,6 +51,15 @@
         observer.observe(document.documentElement, {
           childList: true,
           subtree: true
+        });
+	
+        /** Disconnect observer when the page is unloading to avoid leaks */
+        window.addEventListener("beforeunload", function () {
+          try {
+            observer.disconnect();
+          } catch (e) {
+            // Ignore errors during unload
+          }
         });
 
       } catch (err) {
