@@ -77,34 +77,34 @@ function handleInput(query, directUrl) {
   const engineKey = document.getElementById('engine')?.value || CONFIG.search.defaultEngine;
   const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
 
-  let target = '';
+  let targetUrl = '';
 
   if (directUrl) {
     const prefixed = directUrl.startsWith('http://') || directUrl.startsWith('https://') ? directUrl : 'https://' + directUrl;
-    target = sanitizeEngineUrl(prefixed);
+    targetUrl = sanitizeEngineUrl(prefixed);
   } else if (query) {
     const q = encodeURIComponent(query.trim());
     switch (engine.mode) {
       case 'direct':
-        target = engine.base;
+        targetUrl = engine.base;
         if (engine.appendInput) {
-          if (!target.endsWith('/') && !query.startsWith('/')) target += '/';
-          target += query;
+          if (!targetUrl.endsWith('/') && !query.startsWith('/')) targetUrl += '/';
+          targetUrl += query;
         }
-        target = sanitizeEngineUrl(target);
+        targetUrl = sanitizeEngineUrl(targetUrl);
         break;
       case 'query':
         if (!engine.url) return;
-        target = engine.url.includes('{query}') 
+        targetUrl = engine.url.includes('{query}') 
           ? engine.url.replace('{query}', q)
           : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q;
-        target = sanitizeEngineUrl(target);
+        targetUrl = sanitizeEngineUrl(targetUrl);
         break;
       default: return;
     }
   }
 
-  if (target) navigateSafe(target);
+  if (targetUrl) navigateSafe(targetUrl);
 }
 
 // Force dark mode
