@@ -30,7 +30,7 @@
     async run() {
       if (!this.config.ENABLED) return;
 
-      let MAP = {};
+      let redirectMap = {};
 
       /** ===================== HELPERS ===================== */
 
@@ -58,8 +58,8 @@
             }
           }
 
-          MAP = map;
-          if (this.config.DEBUG) console.info("[KrySearch] Config loaded", MAP);
+          redirectMap = map;
+          if (this.config.DEBUG) console.info("[KrySearch] Config loaded", redirectMap);
         } catch (err) {
           if (this.config.DEBUG) console.error("[KrySearch] Failed to load config", err);
         }
@@ -80,10 +80,23 @@
 
       const validateMirror = async host => {
         if (!host) return false;
+        const TIMEOUT_MS = 3000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, TIMEOUT_MS);
         try {
-          await fetch(`https://${host}/`, { method: "HEAD", mode: "no-cors" });
+          await fetch(`https://${host}/`, {
+            method: "HEAD",
+            mode: "no-cors",
+            signal: controller.signal
+          });
           return true;
-        } catch { return false; }
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timeoutId);
+        }
       };
 
       const rewriteURL = async raw => {
@@ -102,7 +115,7 @@
           u.hostname = mirror;
           u.protocol = "https:";
           return u.href;
-        } catch { return location.origin + location.pathname; }
+        } catch { return location.href; }
       };
 
       const isTorOrI2P = () => /TorBrowser|I2P/.test(navigator.userAgent || "");

@@ -10,7 +10,7 @@ let CONFIG = null;
 async function loadConfig() {
   try {
     const res = await fetch('Config/config.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Failed to load config.json: HTTP ${res.status} ${res.statusText || ''}`.trim());
     CONFIG = await res.json();
   } catch (err) {
     console.error('[KrySearch] Failed to load config.json:', err);
@@ -63,6 +63,9 @@ function sanitizeEngineUrl(url) {
 // Navigate safely
 function navigateSafe(url) {
   if (!url) return;
+  // Internal override hook for navigation; if provided, it must be a function.
+  // External integrations may set window.__KRY_HARD_NAV__, but it is not a
+  // stable public API and is intended for internal/advanced use only.
   if (typeof window.__KRY_HARD_NAV__ === 'function') {
     window.__KRY_HARD_NAV__(url);
   } else {
@@ -77,34 +80,34 @@ function handleInput(query, directUrl) {
   const engineKey = document.getElementById('engine')?.value || CONFIG.search.defaultEngine;
   const engine = engines[engineKey] || engines[CONFIG.search.defaultEngine];
 
-  let target = '';
+  let targetUrl = '';
 
   if (directUrl) {
     const prefixed = directUrl.startsWith('http://') || directUrl.startsWith('https://') ? directUrl : 'https://' + directUrl;
-    target = sanitizeEngineUrl(prefixed);
+    targetUrl = sanitizeEngineUrl(prefixed);
   } else if (query) {
     const q = encodeURIComponent(query.trim());
     switch (engine.mode) {
       case 'direct':
-        target = engine.base;
+        targetUrl = engine.base;
         if (engine.appendInput) {
-          if (!target.endsWith('/') && !query.startsWith('/')) target += '/';
-          target += query;
+          if (!targetUrl.endsWith('/') && !query.startsWith('/')) targetUrl += '/';
+          targetUrl += query;
         }
-        target = sanitizeEngineUrl(target);
+        targetUrl = sanitizeEngineUrl(targetUrl);
         break;
       case 'query':
         if (!engine.url) return;
-        target = engine.url.includes('{query}') 
+        targetUrl = engine.url.includes('{query}') 
           ? engine.url.replace('{query}', q)
           : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q;
-        target = sanitizeEngineUrl(target);
+        targetUrl = sanitizeEngineUrl(targetUrl);
         break;
       default: return;
     }
   }
 
-  if (target) navigateSafe(target);
+  if (targetUrl) navigateSafe(targetUrl);
 }
 
 // Force dark mode

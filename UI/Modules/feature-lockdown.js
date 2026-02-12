@@ -21,7 +21,7 @@
          * @param {Event} e
          */
         const blockEvent = e => {
-             try {
+          try {
             e.preventDefault();
           } catch (err) {
             // Keep handler resilient; log only when debugging is enabled
@@ -40,6 +40,14 @@
           mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
               if (!(node instanceof Element)) return;
+              // Prevent attaching duplicate listeners to the same node
+              if (node.__kryFeatureLockdownMaxInitialized) return;
+              Object.defineProperty(node, "__kryFeatureLockdownMaxInitialized", {
+                value: true,
+                writable: false,
+                configurable: false,
+                enumerable: false
+              });
               blockedEvents.forEach(evt => {
                 node.addEventListener(evt, blockEvent, { capture: true });
               });
@@ -52,7 +60,7 @@
           childList: true,
           subtree: true
         });
-	
+
         /** Disconnect observer when the page is unloading to avoid leaks */
         window.addEventListener("beforeunload", function () {
           try {
