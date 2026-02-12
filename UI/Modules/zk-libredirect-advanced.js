@@ -102,7 +102,7 @@
       const rewriteURL = async raw => {
         try {
           const u = new URL(raw, location.origin);
-          const entry = MAP[u.hostname];
+          const entry = redirectMap[u.hostname];
           if (!entry) return u.href;
 
           let safeMirrors = entry.mirrors.filter(m => simpleReputation(m) >= this.config.MIRROR_REPUTATION_MIN);
@@ -125,7 +125,7 @@
         try {
           const u = new URL(url, location.origin);
           if (!["https:"].includes(u.protocol)) return;
-          if (!MAP[u.hostname]) return; // whitelist enforcement
+          if (!redirectMap[u.hostname]) return; // whitelist enforcement
           location.assign(u.href);
         } catch {}
       };
