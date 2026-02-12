@@ -52,7 +52,7 @@
           childList: true,
           subtree: true
         });
-	
+
         /** Disconnect observer when the page is unloading to avoid leaks */
         window.addEventListener("beforeunload", function () {
           try {
