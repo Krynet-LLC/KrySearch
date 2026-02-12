@@ -30,7 +30,17 @@
             const params = new URLSearchParams(u.search);
 
             for (const key of Array.from(params.keys())) {
-              if (!ALLOWED_PARAMS.has(key) || TRACKING_PREFIXES.some(prefix => key.startsWith(prefix))) {
+              const isTracking = TRACKING_PREFIXES.some(prefix => key.startsWith(prefix));
+              const isAllowed = ALLOWED_PARAMS.has(key);
+
+              // Delete tracking parameters first, regardless of allowed list membership
+              if (isTracking) {
+                params.delete(key);
+                continue;
+              }
+
+              // Then delete any non-tracking parameters that are not explicitly allowed
+              if (!isAllowed) {
                 params.delete(key);
               }
             }
@@ -92,8 +102,12 @@
               e.preventDefault();
               e.stopImmediatePropagation();
               f.action = cleanAction;
-              // submit safely using assign (avoids double submit exploits)
-              safeNavigate(cleanAction);
+              // submit safely using the native submit (avoids double submit exploits and preserves method/data)
+              if (typeof HTMLFormElement !== "undefined" && HTMLFormElement.prototype && typeof HTMLFormElement.prototype.submit === "function") {
+                HTMLFormElement.prototype.submit.call(f);
+              } else if (typeof f.submit === "function") {
+                f.submit();
+              }
             }
           } catch {}
         };
@@ -109,10 +123,13 @@
               if (node.tagName === "A" && node.href) node.addEventListener("click", interceptLink, true);
               if (node.tagName === "FORM" && node.action) node.addEventListener("submit", interceptForm, true);
 
-              node.querySelectorAll("a[href], form[action]").forEach(el => {
-                if (el.tagName === "A") el.addEventListener("click", interceptLink, true);
-                if (el.tagName === "FORM") el.addEventListener("submit", interceptForm, true);
-              });
+              // avoid attaching duplicate listeners when node itself is an A or FORM
+              if (node.tagName !== "A" && node.tagName !== "FORM") {
+                node.querySelectorAll("a[href], form[action]").forEach(el => {
+                  if (el.tagName === "A") el.addEventListener("click", interceptLink, true);
+                  if (el.tagName === "FORM") el.addEventListener("submit", interceptForm, true);
+                });
+              }
             }
           }
         });
