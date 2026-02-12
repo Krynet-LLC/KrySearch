@@ -48,15 +48,6 @@ function getAllEngines() {
   };
 }
 
-function sanitizeHttpsUrl(url) {
-  try {
-    const u = new URL(url, location.origin);
-    return u.protocol === 'https:' ? u.href : null;
-  } catch {
-    return null;
-  }
-}
-
 function navigateSafe(url) {
   if (!url) return;
   if (typeof window.__KRY_HARD_NAV__ === 'function') {
@@ -64,6 +55,36 @@ function navigateSafe(url) {
   } else {
     location.assign(url);
   }
+}
+
+function buildSearchUrl(input, engineKey) {
+  const engines = getAllEngines();
+  const engine = engines[engineKey];
+  if (!engine?.url || !engine.url.includes('{query}')) return null;
+
+  const q = encodeURIComponent(input.trim());
+  return engine.url.replace('{query}', q);
+}
+
+/* =========================
+   PARAM ORDER ENFORCEMENT
+========================= */
+function enforceParamOrder(mode, value, engine) {
+  const ordered = new URLSearchParams();
+
+  if (mode === 'q') ordered.set('q', value);
+  if (mode === 'url') ordered.set('url', value);
+
+  ordered.set('engine', engine);
+
+  const canonical = `${location.pathname}?${ordered.toString()}`;
+  const current = `${location.pathname}${location.search}`;
+
+  if (canonical !== current) {
+    history.replaceState(null, '', canonical);
+  }
+
+  return ordered;
 }
 
 /* =========================
@@ -94,22 +115,6 @@ function forceDarkMode() {
 }
 
 /* =========================
-   SEARCH ROUTER
-========================= */
-function buildSearchUrl(query, engineKey) {
-  const engines = getAllEngines();
-  const engine = engines[engineKey];
-  if (!engine?.url) return null;
-
-  const q = encodeURIComponent(query.trim());
-  const url = engine.url.includes('{query}')
-    ? engine.url.replace('{query}', q)
-    : engine.url + (engine.url.includes('?') ? '&' : '?') + 'q=' + q;
-
-  return sanitizeHttpsUrl(url);
-}
-
-/* =========================
    BOOTSTRAP
 ========================= */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -132,50 +137,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   const defaultEngine = CONFIG.search.defaultEngine;
 
   /* =========================
-     DIRECT MODE — ?url=
-  ========================= */
-  const rawUrl = params.get('url');
-  if (rawUrl) {
-    const candidate = sanitizeHttpsUrl(
-      rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
-    );
-    if (candidate) navigateSafe(candidate);
-    return;
-  }
-
-  /* =========================
      ENGINE RESOLUTION
   ========================= */
-  let engine =
+  const engine =
     params.get('engine') && engines[params.get('engine')]
       ? params.get('engine')
       : defaultEngine;
 
-  /* If engine missing → canonicalize URL */
-  if (!params.get('engine')) {
-    params.set('engine', engine);
-    history.replaceState(
-      null,
-      '',
-      `${location.pathname}?${params.toString()}`
-    );
+  /* =========================
+     MODE DETECTION
+  ========================= */
+  const hasUrl = params.has('url');
+  const hasQuery = params.has('q');
+
+  if (hasUrl) {
+    const value = params.get('url');
+    enforceParamOrder('url', value, engine);
+
+    const normalized =
+      value.startsWith('http') ? value : `https://${value}`;
+
+    const target = buildSearchUrl(normalized, engine);
+    if (target) navigateSafe(target);
+    return;
   }
 
-  populateEngineDropdown(engine);
+  if (hasQuery) {
+    const value = params.get('q');
+    enforceParamOrder('q', value, engine);
 
-  /* =========================
-     SEARCH MODE — ?q=
-  ========================= */
-  const rawQuery = params.get('q');
-  if (rawQuery) {
-    const target = buildSearchUrl(rawQuery, engine);
+    const target = buildSearchUrl(value, engine);
     if (target) navigateSafe(target);
     return;
   }
 
   /* =========================
-     UI EVENTS
+     UI MODE
   ========================= */
+  populateEngineDropdown(engine);
+
   const input = document.getElementById('q');
   const goBtn = document.getElementById('go');
   const select = document.getElementById('engine');
@@ -185,7 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const q = input.value.trim();
       if (!q) return;
 
-      const selectedEngine = select.value || defaultEngine;
+      const selectedEngine =
+        engines[select.value] ? select.value : defaultEngine;
+
       const target = buildSearchUrl(q, selectedEngine);
       if (target) navigateSafe(target);
     });
