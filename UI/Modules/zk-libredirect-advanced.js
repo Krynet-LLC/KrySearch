@@ -102,7 +102,7 @@
           u.hostname = mirror;
           u.protocol = "https:";
           return u.href;
-        } catch { return location.origin + location.pathname; }
+        } catch { return location.href; }
       };
 
       const isTorOrI2P = () => /TorBrowser|I2P/.test(navigator.userAgent || "");
