@@ -30,7 +30,7 @@
     async run() {
       if (!this.config.ENABLED) return;
 
-      let MAP = {};
+      let redirectMap = {};
 
       /** ===================== HELPERS ===================== */
 
@@ -58,8 +58,8 @@
             }
           }
 
-          MAP = map;
-          if (this.config.DEBUG) console.info("[KrySearch] Config loaded", MAP);
+          redirectMap = map;
+          if (this.config.DEBUG) console.info("[KrySearch] Config loaded", redirectMap);
         } catch (err) {
           if (this.config.DEBUG) console.error("[KrySearch] Failed to load config", err);
         }
