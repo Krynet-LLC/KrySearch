@@ -30,7 +30,17 @@
             const params = new URLSearchParams(u.search);
 
             for (const key of Array.from(params.keys())) {
-              if (!ALLOWED_PARAMS.has(key) || TRACKING_PREFIXES.some(prefix => key.startsWith(prefix))) {
+              const isTracking = TRACKING_PREFIXES.some(prefix => key.startsWith(prefix));
+              const isAllowed = ALLOWED_PARAMS.has(key);
+
+              // Delete tracking parameters first, regardless of allowed list membership
+              if (isTracking) {
+                params.delete(key);
+                continue;
+              }
+
+              // Then delete any non-tracking parameters that are not explicitly allowed
+              if (!isAllowed) {
                 params.delete(key);
               }
             }
