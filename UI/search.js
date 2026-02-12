@@ -53,7 +53,7 @@ function populateEngineDropdown() {
 function sanitizeEngineUrl(url) {
   try {
     const u = new URL(url, location.origin);
-    if (!/^https:\/\//i.test(u.href)) return null; // force HTTPS
+    if (u.protocol !== 'https:') return null; // force HTTPS
     return u.href;
   } catch {
     return null;
