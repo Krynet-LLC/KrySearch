@@ -135,8 +135,8 @@ window.KRY_PLUGINS.push({
         configurable: false,
         enumerable: false
       });
-    } catch {
-      // silent fail
+    } catch (err) {
+      console.error("[secure-transport-ultra-max] run() failed:", err);
     }
   }
 });
