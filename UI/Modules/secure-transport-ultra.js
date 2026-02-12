@@ -47,6 +47,10 @@ window.KRY_PLUGINS.push({
         return dec.decode(out);
       }
 
+      function delay(ms = 0) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
       /** STRICT SANITIZATION: only https + engine param */
       function sanitizeURL(raw) {
         try {
@@ -68,21 +72,25 @@ window.KRY_PLUGINS.push({
           await delay();
           const finalURL = await unseal(sealed);
           location.assign(finalURL);
-        } catch {
+        } catch (err) {
+          // If encryption/decryption fails, fall back to direct (sanitized) navigation.
+          console.warn("Secure Transport Ultra: encryption failed, falling back to plain navigation.", err);
           location.assign(safe);
         }
       }
 
       /** OVERRIDE LOCATION METHODS SAFELY */
-      const originalAssign = location.assign ? location.assign.bind(location) : url => location.href = url;
-      const originalReplace = location.replace ? location.replace.bind(location) : url => location.href = url;
+      const originalAssign = location.assign ? location.assign.bind(location) : url => hardNavigate(url);
+      const originalReplace = location.replace ? location.replace.bind(location) : url => hardNavigate(url);
       const safeAssign = url => {
         const safe = sanitizeURL(url);
-        return safe ? hardNavigate(safe) : originalAssign(url);
+        if (!safe) return; // do not navigate to unsafe URLs
+        return hardNavigate(safe);
       };
       const safeReplace = url => {
         const safe = sanitizeURL(url);
-        return safe ? hardNavigate(safe) : originalReplace(url);
+        if (!safe) return; // do not navigate to unsafe URLs
+        return hardNavigate(safe);
       };
 
       Object.defineProperty(location, "assign", { value: safeAssign, configurable: false, writable: false });
@@ -121,7 +129,9 @@ window.KRY_PLUGINS.push({
             if (n.querySelectorAll) {
               try {
                 n.querySelectorAll("a[href], form[action]").forEach(interceptElement);
-              } catch {}
+              } catch (err) {
+                console.error("[KrySearch][secure-transport-ultra] Failed to intercept dynamic links/forms:", err);
+              }
             }
           }
         }
@@ -135,8 +145,8 @@ window.KRY_PLUGINS.push({
         configurable: false,
         enumerable: false
       });
-    } catch {
-      // silent fail
+    } catch (err) {
+      console.error("[secure-transport-ultra-max] run() failed:", err);
     }
   }
 });
