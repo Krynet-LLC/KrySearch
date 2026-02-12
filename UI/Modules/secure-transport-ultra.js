@@ -74,15 +74,17 @@ window.KRY_PLUGINS.push({
       }
 
       /** OVERRIDE LOCATION METHODS SAFELY */
-      const originalAssign = location.assign ? location.assign.bind(location) : url => location.href = url;
-      const originalReplace = location.replace ? location.replace.bind(location) : url => location.href = url;
+      const originalAssign = location.assign ? location.assign.bind(location) : url => hardNavigate(url);
+      const originalReplace = location.replace ? location.replace.bind(location) : url => hardNavigate(url);
       const safeAssign = url => {
         const safe = sanitizeURL(url);
-        return safe ? hardNavigate(safe) : originalAssign(url);
+        if (!safe) return; // do not navigate to unsafe URLs
+        return hardNavigate(safe);
       };
       const safeReplace = url => {
         const safe = sanitizeURL(url);
-        return safe ? hardNavigate(safe) : originalReplace(url);
+        if (!safe) return; // do not navigate to unsafe URLs
+        return hardNavigate(safe);
       };
 
       Object.defineProperty(location, "assign", { value: safeAssign, configurable: false, writable: false });
