@@ -40,6 +40,14 @@
           mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
               if (!(node instanceof Element)) return;
+              // Prevent attaching duplicate listeners to the same node
+              if (node.__kryFeatureLockdownMaxInitialized) return;
+              Object.defineProperty(node, "__kryFeatureLockdownMaxInitialized", {
+                value: true,
+                writable: false,
+                configurable: false,
+                enumerable: false
+              });
               blockedEvents.forEach(evt => {
                 node.addEventListener(evt, blockEvent, { capture: true });
               });
