@@ -92,8 +92,12 @@
               e.preventDefault();
               e.stopImmediatePropagation();
               f.action = cleanAction;
-              // submit safely using assign (avoids double submit exploits)
-              safeNavigate(cleanAction);
+              // submit safely using the native submit (avoids double submit exploits and preserves method/data)
+              if (typeof HTMLFormElement !== "undefined" && HTMLFormElement.prototype && typeof HTMLFormElement.prototype.submit === "function") {
+                HTMLFormElement.prototype.submit.call(f);
+              } else if (typeof f.submit === "function") {
+                f.submit();
+              }
             }
           } catch {}
         };
