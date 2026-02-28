@@ -1,77 +1,64 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
+ *
+ * Privacy Clean Max – clear storage & disable speculative APIs
  */
-(function () {
-  const plugin = {
-    id: "privacy-clean-max",
-    description: "Clear all storage and disable speculative APIs",
+(function(){
+  "use strict";
 
-    run() {
-      try {
+  const plugin={
+    id:"privacy-clean-max",
+    description:"Clear all storage and disable speculative APIs",
+    run(){
+      try{
         // ===============================
         // Storage Cleanup
         // ===============================
-        try { localStorage.clear(); } catch {}
-        try { sessionStorage.clear(); } catch {}
-
-        // IndexedDB cleanup
-        try {
-          if (window.indexedDB && indexedDB.databases) {
-            indexedDB.databases().then(function(dbs) {
-              if (Array.isArray(dbs)) {
-                dbs.forEach(function(db) {
-                  if (db && db.name) {
-                    try { indexedDB.deleteDatabase(db.name); } catch {}
-                  }
-                });
-              }
-            }).catch(function(){});
+        try{ localStorage.clear(); } catch{}
+        try{ sessionStorage.clear(); } catch{}
+        try{
+          if(window.indexedDB?.databases){
+            indexedDB.databases().then(dbs=>{
+              dbs?.forEach(db=>{ try{ indexedDB.deleteDatabase(db.name); } catch{} });
+            }).catch(()=>{});
           }
-        } catch {}
+        } catch{}
 
         // ===============================
         // Cookie Cleanup
         // ===============================
-        try {
-          document.cookie.split(";").forEach(function(c) {
-            document.cookie = c.replace(/^ +/, "")
-              .replace(/=.*/, "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/");
+        try{
+          document.cookie.split(";").forEach(c=>{
+            document.cookie=c.replace(/^ +/,"").replace(/=.*/,"=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/");
           });
-        } catch {}
+        } catch{}
 
         // ===============================
-        // Kill Speculative Fetches
+        // Kill Speculative Links
         // ===============================
-        function killLinks() {
-          var links = document.querySelectorAll(
+        const killLinks=()=>{
+          document.querySelectorAll(
             'link[rel="prefetch"],link[rel="dns-prefetch"],link[rel="prerender"],link[rel="preconnect"]'
-          );
-          if (links && links.length) {
-            for (var i = 0; i < links.length; i++) links[i].remove();
-          }
-        }
+          ).forEach(l=>l.remove());
+        };
 
-        killLinks(); // Immediately kill any speculative links in the DOM
+        killLinks();
 
-        // Observe future DOM insertions to kill speculative links
-        try {
-          var observer = new MutationObserver(function(muts) {
-            muts.forEach(function(m) {
-              m.addedNodes.forEach(function(n) {
-                if (n && n.querySelectorAll) killLinks();
-              });
+        // Observe DOM for future speculative links
+        try{
+          new MutationObserver(muts=>{
+            muts.forEach(m=>{
+              m.addedNodes.forEach(n=>{ if(n?.querySelectorAll) killLinks(); });
             });
-          });
-          observer.observe(document.documentElement, { childList: true, subtree: true });
-        } catch {}
+          }).observe(document.documentElement,{childList:true,subtree:true});
+        } catch{}
 
-      } catch {
-        // Silent fail
-      }
+      } catch{}
     }
   };
 
-  window.KRY_PLUGINS = window.KRY_PLUGINS || [];
+  window.KRY_PLUGINS=window.KRY_PLUGINS||[];
   window.KRY_PLUGINS.push(plugin);
+
 })();
