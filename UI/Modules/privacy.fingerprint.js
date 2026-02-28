@@ -13,91 +13,61 @@
         // 1. CSS Media Queries
         // ===============================
         if (window.matchMedia) {
-          const realMatchMedia = window.matchMedia.bind(window);
-          window.matchMedia = function (query) {
-            let matches = false;
-            if (/prefers-color-scheme: dark/i.test(query)) matches = false;
-            else if (/prefers-reduced-motion/i.test(query)) matches = false;
-            else if (/prefers-contrast/i.test(query)) matches = "no-preference";
-
-            return {
-              matches: matches,
-              media: query,
-              addListener: () => {},
-              removeListener: () => {},
-              addEventListener: () => {},
-              removeEventListener: () => {},
-              dispatchEvent: () => false
-            };
-          };
+          const realMM = window.matchMedia.bind(window);
+          window.matchMedia = query => ({
+            matches: false,
+            media: query,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false
+          });
           try { Object.freeze(window.matchMedia); } catch {}
         }
 
         // ===============================
-        // 2. Font Metrics / Layout Timing
+        // 2. Flatten Layout / Fonts
         // ===============================
-        function neutralizeElement(elProto) {
-          if (!elProto || !elProto.getBoundingClientRect) return;
-          const realGetBoundingClientRect = elProto.getBoundingClientRect;
-          elProto.getBoundingClientRect = function () {
-            const rect = realGetBoundingClientRect.call(this);
+        const neutralize = proto => {
+          if (!proto?.getBoundingClientRect) return;
+          const orig = proto.getBoundingClientRect;
+          proto.getBoundingClientRect = function () {
+            const r = orig.call(this);
             return {
-              x: Math.round(rect.x),
-              y: Math.round(rect.y),
-              width: Math.round(rect.width),
-              height: Math.round(rect.height),
-              top: Math.round(rect.top),
-              left: Math.round(rect.left),
-              right: Math.round(rect.right),
-              bottom: Math.round(rect.bottom)
+              x: Math.round(r.x),
+              y: Math.round(r.y),
+              width: Math.round(r.width),
+              height: Math.round(r.height),
+              top: Math.round(r.top),
+              left: Math.round(r.left),
+              right: Math.round(r.right),
+              bottom: Math.round(r.bottom)
             };
           };
-        }
-
-        neutralizeElement(Element.prototype);
-        neutralizeElement(HTMLElement.prototype);
+        };
+        neutralize(Element.prototype);
+        neutralize(HTMLElement.prototype);
 
         // ===============================
         // 3. Hardware Concurrency
         // ===============================
-        if ("hardwareConcurrency" in navigator) {
-          try {
-            Object.defineProperty(navigator, "hardwareConcurrency", {
-              get: function () { return 4; },
-              configurable: false,
-              enumerable: true
-            });
-          } catch {}
-        }
+        try { Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 }); } catch {}
 
         // ===============================
         // 4. GPU Timing / WebGPU
         // ===============================
-        if (window.GPUDevice) {
-          try {
-            const deviceProto = window.GPUDevice.prototype;
-            if (deviceProto && deviceProto.createCommandEncoder) {
-              const origEncoder = deviceProto.createCommandEncoder;
-              deviceProto.createCommandEncoder = function () {
-                const enc = origEncoder.apply(this, arguments);
-                if (enc && enc.finish) {
-                  try {
-                    enc.finish = new Proxy(enc.finish, {
-                      apply(target, thisArg, argumentsList) {
-                        return target.apply(thisArg, argumentsList);
-                      }
-                    });
-                  } catch {}
-                }
-                return enc;
-              };
-            }
-          } catch {}
+        if (window.GPUDevice?.prototype?.createCommandEncoder) {
+          const proto = GPUDevice.prototype;
+          const orig = proto.createCommandEncoder;
+          proto.createCommandEncoder = function () {
+            const enc = orig.apply(this, arguments);
+            if (enc?.finish) enc.finish = new Proxy(enc.finish, { apply(t, thisArg, args) { return t.apply(thisArg, args); } });
+            return enc;
+          };
         }
 
-      } catch {
-        // silent fail
-      }
+      } catch {}
     }
   };
 
