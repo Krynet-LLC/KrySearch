@@ -1,72 +1,45 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Krynet, LLC
  * https://github.com/Bloodware-Inc/KrySearch
+ *
+ * Open In App – cross-platform, minimal, lazy, safe
  */
-window.KRY_PLUGINS = window.KRY_PLUGINS || [];
-window.KRY_PLUGINS.push({
-  id: "open-in-app-clean",
-  order: 60,
+(function(){
+  "use strict";
 
-  run: function (ctx) {
-    try {
-      var params = new URLSearchParams(location.search);
-      var urlParamRaw = params.get("url");
-      if (!urlParamRaw) return;
+  const SERVICES=[
+    {match:/^https:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(track|album|artist|playlist|user|episode|prerelease)\/([^?]+)/i, replace:(_,t,id)=>`spotify://${t}/${id}`},
+    {match:/^https:\/\/(steamcommunity\.com|store\.steampowered\.com)\/.+/i, replace:url=>`steam://openurl/${url}`},
+    {match:/^https:\/\/store\.epicgames\.com\/(.+)/i, replace:(_,p)=>`com.epicgames.launcher://store/${p}`},
+    {match:/^https:\/\/(?:listen\.)?tidal\.com\/(?:browse\/)?(track|album|artist|playlist|user|video|mix)\/([a-f0-9-]+)/i, replace:(_,t,id)=>`tidal://${t}/${id}`},
+    {match:/^https:\/\/music\.apple\.com\/.+/i, replace:url=>url.replace(/^https:/i,"itunes:")},
+    {match:/^https:\/\/music\.youtube\.com\/.+/i, replace:url=>`vnd.youtube.music://open?url=${encodeURIComponent(url)}`},
+    {match:/^https:\/\/www\.roblox\.com\/games\/(\d+)/i, replace:(_,id)=>`roblox-player://placeId=${id}`}
+  ];
 
-      var urlParam;
-      try { urlParam = decodeURIComponent(urlParamRaw); } catch { urlParam = urlParamRaw; }
-      if (!/^https:\/\//i.test(urlParam)) return;
+  const openExternal=(url,fallback)=>{
+    try{
+      if(typeof view?.open==="function") return view.open(url);
+      if(typeof Sciter?.open==="function") return Sciter.open(url);
+      window.location.href=url;
+      if(fallback) setTimeout(()=>window.open(fallback,"_blank"),1500);
+    }catch{ fallback&&window.open(fallback,"_blank"); }
+  };
 
-      // Default apps & schemes
-      var apps = [
-        { test: /steam\.com/, scheme: function (url) { return "steam://openurl/" + encodeURIComponent(url); } },
-        { test: /epicgames\.com/, scheme: function (url) { return "com.epicgames.launcher://" + encodeURIComponent(url); } },
-        { test: /gog\.com/, scheme: function (url) { return "goggalaxy://launch/" + encodeURIComponent(url); } },
-        { test: /battle\.net/, scheme: function () { return "battlenet://"; } },
+  const transformUrl=url=>{
+    if(!url) return url;
+    for(const s of SERVICES) if(s.match.test(url)) return url.replace(s.match,s.replace);
+    return url;
+  };
 
-        { test: /discord\.com/, scheme: function () { return "discord://"; } },
-        { test: /slack\.com/, scheme: function () { return "slack://open"; } },
-        { test: /teams\.microsoft\.com/, scheme: function (url) { return "msteams://" + encodeURIComponent(url); } },
-        { test: /zoom\.us/, scheme: function (url) { return "zoomus://" + encodeURIComponent(url); } },
+  const handleClick=e=>{
+    const a=e.target.closest("a[href]");
+    if(!a?.href) return;
+    const transformed=transformUrl(a.href);
+    if(transformed!==a.href){ e.preventDefault(); openExternal(transformed,a.href); }
+  };
 
-        { test: /spotify\.com/, scheme: function () { return "spotify://"; } },
-        { test: /youtube\.com/, scheme: function (url) { return "youtube://" + encodeURIComponent(url); } },
-        { test: /twitch\.tv/, scheme: function (url) { return "twitch://" + encodeURIComponent(url); } },
+  window.KRY_PLUGINS=window.KRY_PLUGINS||[];
+  window.KRY_PLUGINS.push({id:"open-in-app-clean",order:60,run:()=>document.addEventListener("click",handleClick,true)});
 
-        { test: /krynet\.ai/, scheme: function (url) { return "krynet://" + encodeURIComponent(url); } }
-      ];
-
-      function tryOpenApp(appUrl) {
-        try {
-          var iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.src = appUrl;
-          document.body.appendChild(iframe);
-          setTimeout(function () {
-            if (iframe.parentNode) {
-              iframe.parentNode.removeChild(iframe);
-            }
-          }, 1000);
-        } catch {}
-      }
-
-      for (var i = 0; i < apps.length; i++) {
-        var app = apps[i];
-        if (app.test.test(urlParam)) {
-          var appUrl = app.scheme(urlParam);
-          try {
-            if (window.__KRY_HARD_NAV__ && typeof window.__KRY_HARD_NAV__ === "function") {
-              window.__KRY_HARD_NAV__(appUrl);
-            } else {
-              tryOpenApp(appUrl);
-            }
-          } catch {
-            tryOpenApp(appUrl);
-          }
-          break;
-        }
-      }
-
-    } catch {}
-  }
-});
+})();
