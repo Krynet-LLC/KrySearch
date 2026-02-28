@@ -1,24 +1,36 @@
 "use strict";
 
-(async()=>{
-  const p=new URLSearchParams(location.search),q=p.get("q"),u=p.get("url");
-  if(!q&&!u) return;
+(async () => {
+  const p = new URLSearchParams(location.search);
+  const q = p.get("q");      // search query
+  const u = p.get("url");    // direct URL
+  const forcedEngine = p.get("engine");
 
-  let c;
-  try{c=await(await fetch("./Config/config.json",{cache:"no-store"})).json()}catch{console.error("[KrySearch] Failed to load config");return}
+  // 🚀 Direct URL mode
+  if (u) {
+    let target = u.startsWith("http") ? u : "https://" + u;
+    try { target = new URL(target).href } 
+    catch { return console.warn("[KrySearch] Invalid URL:", u) }
+    return location.replace(target); // go straight to the site
+  }
 
-  const e={...c.engines.open_source,...c.engines.closed_source},
-        key=(p.get("engine")||c.search.defaultEngine||"").toLowerCase(),
-        engine=e[key]||e[c.search.defaultEngine]||e[Object.keys(e)[0]];
-  if(!engine?.url) return console.error("[KrySearch] Engine missing URL");
+  // ❌ No search query → nothing to do
+  if (!q) return;
 
-  let query=u?((u.startsWith("http")?u:"https://"+u)) : q;
-  try{if(u)query=new URL(query).href}catch{return console.warn("[KrySearch] Invalid URL")}
+  // 🔧 Load config
+  let CONFIG;
+  try {
+    const res = await fetch("./Config/config.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    CONFIG = await res.json();
+  } catch (e) { return console.error("[KrySearch] Failed to load config.json", e) }
 
-  console.log("[KrySearch] Params:",{q,u,forcedEngine:p.get("engine")});
-  console.log("[KrySearch] Using engine:",key);
-  console.log("[KrySearch] Final query:",query);
-  console.log("[KrySearch] Redirecting to:",engine.url.replace("{query}",encodeURIComponent(query)));
+  // 🔍 Determine engine
+  const engines = { ...CONFIG.engines.open_source, ...CONFIG.engines.closed_source };
+  const engineKey = (forcedEngine && engines[forcedEngine]) ? forcedEngine : CONFIG.search.defaultEngine;
+  const engine = engines[engineKey];
+  if (!engine?.url) return console.error("[KrySearch] Missing engine URL");
 
-  window.location.assign(engine.url.replace("{query}",encodeURIComponent(query)));
+  // 🌐 Redirect using the search engine
+  location.replace(engine.url.replace("{query}", encodeURIComponent(q)));
 })();
